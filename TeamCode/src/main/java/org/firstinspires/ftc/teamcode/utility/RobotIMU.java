@@ -42,29 +42,26 @@ import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.AxesOrder;
 import org.firstinspires.ftc.robotcore.external.navigation.AxesReference;
 import org.firstinspires.ftc.robotcore.external.navigation.Orientation;
+import org.firstinspires.ftc.robotcore.external.navigation.Velocity;
+import org.firstinspires.ftc.robotcore.external.navigation.YawPitchRollAngles;
 
 import java.util.Locale;
 
 
 public class RobotIMU
     {
-    //----------------------------------------------------------------------------------------------
-    // State
-    //----------------------------------------------------------------------------------------------
 
-    // The IMU sensor object
-    BNO055IMU imu;
-
+        IMU BotIMU;
     // State used for updating telemetry
-    Orientation angles;
-    Acceleration gravity;
+    YawPitchRollAngles angles;
 
-    //        imu = hardwareMap.get(BNO055IMU.class, "imu");
+        double Yaw;
+    double Pitch;
+    double Roll;
 
+    public RobotIMU(IMU imu) {
 
-
-    public RobotIMU(BNO055IMUNew imu) {
-
+        BotIMU = imu;
         // Set up the parameters with which we will use our IMU. Note that integration
         // algorithm here just reports accelerations to the logcat log; it doesn't actually
         // provide positional information.
@@ -73,80 +70,10 @@ public class RobotIMU
                 RevHubOrientationOnRobot.LogoFacingDirection.UP,
                 RevHubOrientationOnRobot.UsbFacingDirection.FORWARD));
 
-        imu.initialize(parameters);
-
-        // Set up our telemetry dashboard
-        composeTelemetry();
-
-
-        // Start the logging of measured acceleration
-      //  imu.startAccelerationIntegration(new Position(), new Velocity(), 1000);
-
+        BotIMU.initialize(parameters);
 
     }
 
-    //----------------------------------------------------------------------------------------------
-    // Telemetry Configuration
-    //----------------------------------------------------------------------------------------------
-
-    void composeTelemetry() {
-
-        // At the beginning of each telemetry update, grab a bunch of data
-        // from the IMU that we will then display in separate lines.
-        telemetry.addAction(new Runnable() { @Override public void run()
-                {
-                // Acquiring the angles is relatively expensive; we don't want
-                // to do that in each of the three items that need that info, as that's
-                // three times the necessary expense.
-                angles   = imu.getAngularOrientation(AxesReference.INTRINSIC, AxesOrder.ZYX, AngleUnit.DEGREES);
-                gravity  = imu.getGravity();
-                }
-            });
-
-        telemetry.addLine()
-            .addData("status", new Func<String>() {
-                @Override public String value() {
-                    return imu.getSystemStatus().toShortString();
-                    }
-                })
-            .addData("calib", new Func<String>() {
-                @Override public String value() {
-                    return imu.getCalibrationStatus().toString();
-                    }
-                });
-
-        telemetry.addLine()
-            .addData("heading", new Func<String>() {
-                @Override public String value() {
-                    return formatAngle(angles.angleUnit, angles.firstAngle);
-                    }
-                })
-            .addData("roll", new Func<String>() {
-                @Override public String value() {
-                    return formatAngle(angles.angleUnit, angles.secondAngle);
-                    }
-                })
-            .addData("pitch", new Func<String>() {
-                @Override public String value() {
-                    return formatAngle(angles.angleUnit, angles.thirdAngle);
-                    }
-                });
-
-        telemetry.addLine()
-            .addData("grvty", new Func<String>() {
-                @Override public String value() {
-                    return gravity.toString();
-                    }
-                })
-            .addData("mag", new Func<String>() {
-                @Override public String value() {
-                    return String.format(Locale.getDefault(), "%.3f",
-                            Math.sqrt(gravity.xAccel*gravity.xAccel
-                                    + gravity.yAccel*gravity.yAccel
-                                    + gravity.zAccel*gravity.zAccel));
-                    }
-                });
-    }
 
     //----------------------------------------------------------------------------------------------
     // Formatting
@@ -159,4 +86,26 @@ public class RobotIMU
     String formatDegrees(double degrees){
         return String.format(Locale.getDefault(), "%.1f", AngleUnit.DEGREES.normalize(degrees));
     }
-}
+
+
+        public YawPitchRollAngles getAngles() {
+            angles = BotIMU.getRobotYawPitchRollAngles();
+            return angles;
+        }
+
+        public double getYaw() {
+            Yaw = BotIMU.getRobotYawPitchRollAngles().getYaw(AngleUnit.DEGREES);
+            return Yaw;
+        }
+
+        public double getPitch() {
+            Pitch = BotIMU.getRobotYawPitchRollAngles().getPitch(AngleUnit.DEGREES);
+            return Pitch;
+        }
+
+        public double getRoll() {
+            Roll = BotIMU.getRobotYawPitchRollAngles().getRoll(AngleUnit.DEGREES);
+            return Roll;
+        }
+
+    }
