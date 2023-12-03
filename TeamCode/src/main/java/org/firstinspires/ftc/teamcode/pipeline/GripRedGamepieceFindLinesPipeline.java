@@ -52,9 +52,9 @@ public class GripRedGamepieceFindLinesPipeline extends OpenCvPipeline {
 
 		// Step RGB_Threshold0:
 		Mat rgbThresholdInput = cvResizeOutput;
-		double[] rgbThresholdRed = {0.0, 107.04778156996584};
-		double[] rgbThresholdGreen = {77.96762589928058, 176.67235494880546};
-		double[] rgbThresholdBlue = {119.24460431654674, 239.76962457337885};
+		double[] rgbThresholdRed = {160.52158273381298, 255.0};
+		double[] rgbThresholdGreen = {66.50179856115108, 130.98122866894198};
+		double[] rgbThresholdBlue = {105.48561151079136, 196.2542662116041};
 		rgbThreshold(rgbThresholdInput, rgbThresholdRed, rgbThresholdGreen, rgbThresholdBlue, rgbThresholdOutput);
 
 		// Step CV_erode0:
