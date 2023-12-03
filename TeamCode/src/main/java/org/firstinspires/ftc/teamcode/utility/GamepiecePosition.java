@@ -20,20 +20,17 @@ public class GamepiecePosition {
         //determines the game piece position when the robot is starting on the left side of their
         // alliance from the perspective of the drivers
         if (robotPOS == "left") {
-            if (gamepieceLocation.x < 180 && gamepieceLocation.x > 0) {
+            if (gamepieceLocation.x < 280 && gamepieceLocation.x > 0) {
                 location = "left";
-            } else if (gamepieceLocation.x >= 180) {
+            } else if (gamepieceLocation.x >= 280 && gamepieceLocation.x < 600) {
                 location = "center";
             } else {
                 location = "right";
             }
-        }
-        //determines the game piece position when the robot is starting on the right side of their
-        //alliance from the perspective of the drivers
-        else if (robotPOS =="right") {
-            if (gamepieceLocation.x > 260) {
+        } else if (robotPOS =="right") {
+            if (gamepieceLocation.x > 350) {
                 location = "right";
-            } else if (gamepieceLocation.x <= 260 && gamepieceLocation.x > 0) {
+            } else if (gamepieceLocation.x <= 350 && gamepieceLocation.x > 50) {
                 location = "center";
             } else {
                 location = "left";

@@ -43,7 +43,8 @@ import com.qualcomm.robotcore.util.ElapsedTime;
 import org.firstinspires.ftc.robotcore.external.JavaUtil;
 import org.firstinspires.ftc.robotcore.external.hardware.camera.WebcamName;
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
-import org.firstinspires.ftc.teamcode.pipeline.GripPipelineRedGamepieceRGB;
+//import org.firstinspires.ftc.teamcode.pipeline.GripPipelineRedGamepieceRGB;
+import org.firstinspires.ftc.teamcode.pipeline.GripPipelineWhitePixelRGBT1;
 import org.firstinspires.ftc.teamcode.utility.GamepiecePosition;
 import org.firstinspires.ftc.teamcode.utility.IntakeMovement;
 import org.firstinspires.ftc.teamcode.utility.LinearSlideMovement;
@@ -106,7 +107,7 @@ public class Auto1_RedFieldRight extends OpMode {
     static final int STREAM_WIDTH = 1280; // modify for your camera
     static final int STREAM_HEIGHT = 960; // modify for your camera
     OpenCvWebcam webcam;
-    GripPipelineRedGamepieceRGB pipeline;
+    GripPipelineWhitePixelRGBT1 pipeline;
 
     Movement moveTo;
 
@@ -114,13 +115,13 @@ public class Auto1_RedFieldRight extends OpMode {
 
     LinearSlideMovement linearSlideMove;
 
-    private String gamepieceLocation;
+    private String gamepieceLocation = "left";
 
     int state;
 
-    int rightCount = 0;
-    int centerCount = 0;
-    int leftCount = 0;
+    double rightCount = 0;
+    double centerCount = 0;
+    double leftCount = 0;
 
     @Override
     public void init_loop(){
@@ -134,13 +135,21 @@ public class Auto1_RedFieldRight extends OpMode {
         } else {
             leftCount += 1;
         }
-        if (rightCount > centerCount) {
+        if (rightCount > centerCount && rightCount > 5) {
             gamepieceLocation = "right";
-        } else if (centerCount > leftCount) {
+        } else if (centerCount > leftCount && centerCount > 5) {
             gamepieceLocation = "center";
-        } else {
+        } else if (leftCount > 5){
             gamepieceLocation = "left";
         }
+
+        // Reset the counters to lower values every 50 detects to allow for field condition changes
+        if (rightCount + centerCount + leftCount > 50) {
+            rightCount = rightCount * 0.3;
+            centerCount = centerCount * 0.3;
+            leftCount = leftCount * 0.3;
+        }
+
         telemetry.addData("AvgContour.x",avgLoc.x);
         telemetry.addData("AvgContour.y",avgLoc.y);
         telemetry.addData("location", gamepieceLocation);
@@ -154,7 +163,8 @@ public class Auto1_RedFieldRight extends OpMode {
         WebcamName webcamName = null;
         webcamName = hardwareMap.get(WebcamName.class, "gge_cam"); // put your camera's name here
         webcam = OpenCvCameraFactory.getInstance().createWebcam(webcamName, cameraMonitorViewId);
-        pipeline = new GripPipelineRedGamepieceRGB();
+        //pipeline = new GripPipelineRedGamepieceRGB();
+        pipeline = new GripPipelineWhitePixelRGBT1();
         webcam.setPipeline(pipeline);
 
         webcam.openCameraDeviceAsync(new OpenCvCamera.AsyncCameraOpenListener()
@@ -321,7 +331,7 @@ public class Auto1_RedFieldRight extends OpMode {
             // Left 3 inches
             //moveTo.Left((int)((1 * ticksPerInch) * 0.94), 0.5);
             // Backwards 36.5 inches
-            moveTo.Backwards((int)((34 * ticksPerInch) * 0.94), 0.25);
+            moveTo.Backwards((int)((34.5 * ticksPerInch) * 0.94), 0.25);
             // Move the linear slide to the low scoring position
             linearSlideMove.Movelinearslide(low_linearslide_ticks);
             // Moves the conveyor forward
@@ -343,7 +353,7 @@ public class Auto1_RedFieldRight extends OpMode {
                 state = 2;
         } else if (state == 0) {
             moveTo.Forward((int)((25 * ticksPerInch) * 0.94), 0.25);
-            moveTo.Rotate(-95);
+            moveTo.Rotate(-90);
             sleep(700);
             intake.FlipDown();
             sleep(1500);
@@ -352,8 +362,8 @@ public class Auto1_RedFieldRight extends OpMode {
             sleep(500);
             intake.FlipUp();
             moveTo.Backwards((int)((19 * ticksPerInch) * 0.94), 0.25);
-            moveTo.Right((int)((6.5 * ticksPerInch) * 1.04), 0.5);
-            moveTo.Backwards((int)((17.5 * ticksPerInch) * 0.94), 0.25);
+            moveTo.Right((int)((3 * ticksPerInch) * 1.04), 0.5);
+            moveTo.Backwards((int)((20 * ticksPerInch) * 0.94), 0.25);
             linearSlideMove.Movelinearslide(low_linearslide_ticks);
             sleep(700);
             // Moves the conveyor forward
