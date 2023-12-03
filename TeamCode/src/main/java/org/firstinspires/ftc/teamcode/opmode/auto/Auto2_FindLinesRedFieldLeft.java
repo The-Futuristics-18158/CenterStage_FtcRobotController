@@ -43,7 +43,8 @@ import com.qualcomm.robotcore.util.ElapsedTime;
 import org.firstinspires.ftc.robotcore.external.JavaUtil;
 import org.firstinspires.ftc.robotcore.external.hardware.camera.WebcamName;
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
-import org.firstinspires.ftc.teamcode.pipeline.GripPipelineFindLinesNavyHat;
+import org.firstinspires.ftc.teamcode.pipeline.GripPipelineWhitePixelRGBT1;
+import org.firstinspires.ftc.teamcode.pipeline.GripRedGamepieceFindLinesPipeline;
 import org.firstinspires.ftc.teamcode.utility.GamepiecePosition;
 import org.firstinspires.ftc.teamcode.utility.IntakeMovement;
 import org.firstinspires.ftc.teamcode.utility.LinearSlideMovement;
@@ -82,9 +83,9 @@ import org.openftc.easyopencv.OpenCvWebcam;
  * Remove or comment out the @Disabled line to add this OpMode to the Driver Station OpMode list
  */
 
-@Autonomous(name="FindLinesNavyHatRedFieldRight", group="OpMode")
+@Autonomous(name="FindLinesRedFieldLeft", group="OpMode")
 //@Disabled
-public class Auto1_FindLinesNavyHat_RedFieldRight extends OpMode {
+public class Auto2_FindLinesRedFieldLeft extends OpMode {
     // Declare OpMode members for each of the 4 motors.
     private ElapsedTime runtime = new ElapsedTime();
     private DcMotor leftFrontDrive = null;
@@ -106,7 +107,7 @@ public class Auto1_FindLinesNavyHat_RedFieldRight extends OpMode {
     static final int STREAM_WIDTH = 1280; // modify for your camera
     static final int STREAM_HEIGHT = 960; // modify for your camera
     OpenCvWebcam webcam;
-    GripPipelineFindLinesNavyHat pipeline;
+    GripRedGamepieceFindLinesPipeline pipeline;
 
     Movement moveTo;
 
@@ -114,18 +115,18 @@ public class Auto1_FindLinesNavyHat_RedFieldRight extends OpMode {
 
     LinearSlideMovement linearSlideMove;
 
-    private String gamepieceLocation;
+    private String gamepieceLocation = "right";
 
     int state;
 
-    int rightCount = 0;
-    int centerCount = 0;
-    int leftCount = 0;
+    double rightCount = 0;
+    double centerCount = 0;
+    double leftCount = 0;
 
     @Override
     public void init_loop(){
         state = 0;
-        GamepiecePosition gamepiecePOS = new GamepiecePosition(pipeline.avgLineCoordinate(), "right");
+        GamepiecePosition gamepiecePOS = new GamepiecePosition(pipeline.avgLineCoordinate(), "left");
         Point avgLoc = pipeline.avgLineCoordinate();
         if (gamepiecePOS.getPOS() == "right"){
             rightCount += 1;
@@ -134,13 +135,21 @@ public class Auto1_FindLinesNavyHat_RedFieldRight extends OpMode {
         } else {
             leftCount += 1;
         }
-        if (rightCount > centerCount) {
+        if (rightCount > centerCount && rightCount > 5) {
             gamepieceLocation = "right";
-        } else if (centerCount > leftCount) {
+        } else if (centerCount > leftCount && centerCount > 5) {
             gamepieceLocation = "center";
-        } else {
+        } else if (leftCount > 5){
             gamepieceLocation = "left";
         }
+
+        // Reset the counters to lower values every 50 detects to allow for field condition changes
+        if (rightCount + centerCount + leftCount > 50) {
+            rightCount = rightCount * 0.3;
+            centerCount = centerCount * 0.3;
+            leftCount = leftCount * 0.3;
+        }
+
         telemetry.addData("AvgContour.x",avgLoc.x);
         telemetry.addData("AvgContour.y",avgLoc.y);
         telemetry.addData("location", gamepieceLocation);
@@ -154,7 +163,7 @@ public class Auto1_FindLinesNavyHat_RedFieldRight extends OpMode {
         WebcamName webcamName = null;
         webcamName = hardwareMap.get(WebcamName.class, "gge_cam"); // put your camera's name here
         webcam = OpenCvCameraFactory.getInstance().createWebcam(webcamName, cameraMonitorViewId);
-        pipeline = new GripPipelineFindLinesNavyHat();
+        pipeline = new GripRedGamepieceFindLinesPipeline();
         webcam.setPipeline(pipeline);
 
         webcam.openCameraDeviceAsync(new OpenCvCamera.AsyncCameraOpenListener()
@@ -255,11 +264,11 @@ public class Auto1_FindLinesNavyHat_RedFieldRight extends OpMode {
         // Wheel diameter is 100mm
         double ticksPerInch = (28 * 12) / ((100 * 3.14) / 25.4);
 
-        if (gamepieceLocation == "right" && state == 0){
+        if (gamepieceLocation == "left" && state == 0){
             // move forward 2 inches
             moveTo.Forward((int)((2 * ticksPerInch) * 0.94), 0.25); // Calculated ticks by distance * 94% (from last year)
             // move sideways 9 inches
-            moveTo.Right((int)((9 * ticksPerInch)* 1.04), 0.5); // Calculated ticks by distance * 104% (from last year)
+            moveTo.Left((int)((9 * ticksPerInch)* 1.04), 0.5); // Calculated ticks by distance * 104% (from last year)
             // move forward 12 inches
             moveTo.Forward((int)((12 * ticksPerInch) * 0.94), 0.25); // Calculated ticks by distance * 94% (from last year)
             // Move the claw down
@@ -269,40 +278,11 @@ public class Auto1_FindLinesNavyHat_RedFieldRight extends OpMode {
             intake.ClawOpen();
             // Move the claw up
             intake.FlipUp();
-            // Rotate 90 degrees
-            moveTo.Rotate(-90);
-            sleep(700);
-            // Backwards 18 inches
-            moveTo.Backwards((int)((18 * ticksPerInch) * 0.94), 0.25);
-            // Left 6 inches
-            moveTo.Right((int)((5 * ticksPerInch) * 1.04), 0.5);
-            // Move backwards 10.5 inches
-            moveTo.Backwards((int)((10 * ticksPerInch) * 0.94), 0.25);
-            // Move the linear slide to the low scoring position
-            linearSlideMove.Movelinearslide(low_linearslide_ticks);
-            // Moves the conveyor forward
-            conveyor.setPosition(0);
-            // Runs the conveyor for 4 seconds
-            sleep(4000);
-            // Stops the conveyor
-            conveyor.setPosition(0.5);
-            // Moves the linear slide to the bottom position
-            linearSlideMove.Movelinearslide(bottom_linearslide_ticks);
-            // Forward 12 inches
-            moveTo.Forward((int)((6 * ticksPerInch) * 0.94), 0.25);
-            // Moves right 18 inches
-            moveTo.Left((int)((18 * ticksPerInch) * 1.04), 0.5);
-            // Backward 12 inches
-            moveTo.Backwards((int)((12 * ticksPerInch) * 0.94), 0.25);
-
-
-
             // Add telemetry
             telemetry.addData("run", state);
             telemetry.update();
-
-
             state = 1;
+
         } else if (gamepieceLocation == "center" && state == 0) {
             // move forward 18 inches
             moveTo.Forward((int)((18 * ticksPerInch) * 0.94), 0.25); // Calculated ticks by distance * 94% (from last year)
@@ -315,61 +295,24 @@ public class Auto1_FindLinesNavyHat_RedFieldRight extends OpMode {
             intake.ClawOpen();
             // Move the claw up
             intake.FlipUp();
+            state = 2;
+
+        } else if (gamepieceLocation=="right"&& state == 0) {
+            // Move forward 25 inches
+            moveTo.Forward((int)((25 * ticksPerInch) * 0.94), 0.4);
             // Rotate 90 degrees
-            moveTo.Rotate(-90);
+            moveTo.Rotate(90);
             sleep(700);
-            // Left 3 inches
-            //moveTo.Left((int)((1 * ticksPerInch) * 0.94), 0.5);
-            // Backwards 36.5 inches
-            moveTo.Backwards((int)((34 * ticksPerInch) * 0.94), 0.25);
-            // Move the linear slide to the low scoring position
-            linearSlideMove.Movelinearslide(low_linearslide_ticks);
-            // Moves the conveyor forward
-            conveyor.setPosition(0);
-            // Runs the conveyor for 4 seconds
-            sleep(4000);
-            // Stops the conveyor
-            conveyor.setPosition(0.5);
-            // Moves the linear slide to the bottom position
-            linearSlideMove.Movelinearslide(bottom_linearslide_ticks);
-            // Forward 6 inches
-            moveTo.Forward((int)((6 * ticksPerInch) * 0.94), 0.25);
-            // Moves right 26 inches
-            moveTo.Left((int)((21 * ticksPerInch) * 1.04), 0.5);
-            // Backward 6 inches
-            moveTo.Backwards((int)((13 * ticksPerInch) * 0.94), 0.25);
-
-
-                state = 2;
-        } else if (state == 0) {
-            moveTo.Forward((int)((25 * ticksPerInch) * 0.94), 0.25);
-            moveTo.Rotate(-95);
-            sleep(700);
+            // Move the claw down
             intake.FlipDown();
             sleep(1500);
-            moveTo.Forward((int)((6 * ticksPerInch) * 0.94), 0.4);
+            // Move forward 6 inches
+            moveTo.Forward((int)((5.5 * ticksPerInch) * 0.94), 0.4);
+            // Open the claw
             intake.ClawOpen();
             sleep(500);
+            // Move the claw up
             intake.FlipUp();
-            moveTo.Backwards((int)((19 * ticksPerInch) * 0.94), 0.25);
-            moveTo.Right((int)((6.5 * ticksPerInch) * 1.04), 0.5);
-            moveTo.Backwards((int)((17.5 * ticksPerInch) * 0.94), 0.25);
-            linearSlideMove.Movelinearslide(low_linearslide_ticks);
-            sleep(700);
-            // Moves the conveyor forward
-            conveyor.setPosition(0);
-            // Runs the conveyor for 4 seconds
-            sleep(4000);
-            // Stops the conveyor
-            conveyor.setPosition(0.5);
-            // Moves the linear slide to the bottom position
-            linearSlideMove.Movelinearslide(bottom_linearslide_ticks);
-            // Forward 6 inches
-            moveTo.Forward((int)((6 * ticksPerInch) * 0.94), 0.25);
-            // Moves right 26 inches
-            moveTo.Left((int)((30 * ticksPerInch) * 1.04), 0.5);
-            // Backward 6 inches
-            moveTo.Backwards((int)((12 * ticksPerInch) * 0.94), 0.25);
             state = 3;
         }
 
@@ -384,6 +327,4 @@ public class Auto1_FindLinesNavyHat_RedFieldRight extends OpMode {
         telemetry.addData("state", state);
         telemetry.addData("location", gamepieceLocation);
         telemetry.update();
-
-
     }}
