@@ -3,21 +3,16 @@ package org.firstinspires.ftc.teamcode.pipeline;
 import org.opencv.core.Core;
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
-import org.opencv.core.MatOfInt;
 import org.opencv.core.MatOfPoint;
-import org.opencv.core.MatOfPoint2f;
 import org.opencv.core.Point;
-import org.opencv.core.Rect;
 import org.opencv.core.Scalar;
 import org.opencv.core.Size;
 import org.opencv.imgproc.Imgproc;
 import org.opencv.imgproc.LineSegmentDetector;
-import org.opencv.imgproc.Moments;
 import org.openftc.easyopencv.OpenCvPipeline;
 
 import java.util.ArrayList;
 import java.util.Iterator;
-import java.util.List;
 
 
 /**
@@ -27,7 +22,7 @@ import java.util.List;
 *
 * @author GRIP
 */
-public class GripPipelineFindLinesNavyHat extends OpenCvPipeline {
+public class GripBlueGamepieceFindLinesPipeline extends OpenCvPipeline {
 
 	//Outputs
 	private Mat cvResizeOutput = new Mat();
@@ -57,9 +52,9 @@ public class GripPipelineFindLinesNavyHat extends OpenCvPipeline {
 
 		// Step RGB_Threshold0:
 		Mat rgbThresholdInput = cvResizeOutput;
-		double[] rgbThresholdRed = {6.879496402877698, 70.05972696245736};
-		double[] rgbThresholdGreen = {18.345323741007192, 61.35665529010239};
-		double[] rgbThresholdBlue = {32.10431654676259, 100.52047781569966};
+		double[] rgbThresholdRed = {0.0, 107.04778156996584};
+		double[] rgbThresholdGreen = {77.96762589928058, 176.67235494880546};
+		double[] rgbThresholdBlue = {119.24460431654674, 239.76962457337885};
 		rgbThreshold(rgbThresholdInput, rgbThresholdRed, rgbThresholdGreen, rgbThresholdBlue, rgbThresholdOutput);
 
 		// Step CV_erode0:
@@ -94,8 +89,8 @@ public class GripPipelineFindLinesNavyHat extends OpenCvPipeline {
 		}
 
 		// init to -1 since that is impossible
-		double avg_line_x = -1;
-		double avg_line_y  = -1;
+		double avg_line_x = 0;
+		double avg_line_y  = 0;
 
 		int  num_points = countLines(lineIterator);
 		if ((sum_x > 0) && (sum_y >0)){
@@ -275,6 +270,8 @@ public class GripPipelineFindLinesNavyHat extends OpenCvPipeline {
 			}
 		}
 	}
+
+
 
 
 
