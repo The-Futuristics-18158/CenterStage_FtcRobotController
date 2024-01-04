@@ -70,6 +70,7 @@ public class AprilTagCamera extends SubsystemBase {
 
         List<AprilTagDetection> tags =  GetCurrentAprilTagDetections();
 
+        // still under development
         /*// revise AprilTag decimation based on ranges
         double minrange = 144.0;
         for (int i=0; i<tags.size(); ++i) {
