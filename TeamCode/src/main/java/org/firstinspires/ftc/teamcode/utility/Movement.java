@@ -1,14 +1,15 @@
 package org.firstinspires.ftc.teamcode.utility;
 
-import static org.firstinspires.ftc.robotcore.external.BlocksOpModeCompanion.telemetry;
 import static java.lang.Math.abs;
 
+import com.qualcomm.hardware.rev.RevBlinkinLedDriver;
 import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.IMU;
 
 import org.firstinspires.ftc.robotcore.external.Telemetry;
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
+import org.firstinspires.ftc.vision.VisionPortal;
 import org.firstinspires.ftc.vision.apriltag.AprilTagDetection;
 import org.firstinspires.ftc.vision.apriltag.AprilTagProcessor;
 
@@ -31,29 +32,52 @@ public class Movement {
     private DcMotor lbDrive;
     private DcMotor rbDrive;
     private IMU imu;
-
+    private RevBlinkinLedDriver blinkinLED;
     private Telemetry telemetry;
 
     // Tracks if it's quicker to turn right or left
     double turnError = 0;
 
     double moveStartDirection = 0.0;
+    // Initialize several variables for GoToAprilTag method.
+// Used for managing the AprilTag detection process.
+    private AprilTagProcessor myAprilTagProcessor;
+    // Used to manage the video source.
+    private VisionPortal myVisionPortal;
+    int alignStage = 0;
+    double currentX = -2;
+    double currentY = 15;
+    boolean tagDetected = false;
+    boolean aprilTagAligned = false;
+    double axial = 0;
+    double lateral = 0;
+    double yaw = 0;
+    double currentAngle = 0;
 
     /**
      * Pulls in information about the motors that is determined during initialization and makes
      * that information accessible to the rest of the class.
-     * @param leftFrontDrive  the front left wheels motor,
-     * @param  rightFrontDrive  the front right wheels motor,
-     * @param  leftBackDrive  the back left wheels motor,
-     * @param  rightBackDrive  the back right wheels motor
+     *
+     * @param leftFrontDrive       the front left wheels motor,
+     * @param rightFrontDrive      the front right wheels motor,
+     * @param leftBackDrive        the back left wheels motor,
+     * @param rightBackDrive       the back right wheels motor,
+     * @param imu1                 the ControlHub gyro,
+     * @param blinkinLED1          the BlinkinLED,
+     * @param myAprilTagProcessor1 the AprilTag Processor,
+     * @param myVisionPortal1      the Vision Portal,
+     * @param telemetry1           telemetry for the Drive Station
      */
     public Movement(DcMotor leftFrontDrive, DcMotor rightFrontDrive,
-                    DcMotor leftBackDrive, DcMotor rightBackDrive, IMU imu1, Telemetry telemetry1){
+                    DcMotor leftBackDrive, DcMotor rightBackDrive, IMU imu1, RevBlinkinLedDriver blinkinLED1, AprilTagProcessor myAprilTagProcessor1, VisionPortal myVisionPortal1, Telemetry telemetry1){
         lfDrive = leftFrontDrive;
         rfDrive = rightFrontDrive;
         lbDrive = leftBackDrive;
         rbDrive = rightBackDrive;
         imu = imu1;
+        blinkinLED = blinkinLED1;
+        myAprilTagProcessor = myAprilTagProcessor1;
+        myVisionPortal = myVisionPortal1;
         telemetry = telemetry1;
     }
 
@@ -90,7 +114,16 @@ public class Movement {
         //rbDrive.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER); // Turn the motor back on when we are done
 
     }
-
+    /**
+     * Stops all drive motors.
+     */
+    public void StopMotors() {
+        // Set Powers to 0 for safety and not knowing what they are set to.
+        lfDrive.setPower(0);
+        rfDrive.setPower(0);
+        lbDrive.setPower(0);
+        rbDrive.setPower(0);
+    }
     /**
      * Moves all wheel motors forward a distance in ticks
      * @param power  the power given to the motors
@@ -252,6 +285,10 @@ public class Movement {
         turnError = degrees - currentDirection;
         //Closed loop turn.  Stay in the while loop until the desired bering is achieved.
         while (abs (lbDrive.getTargetPosition() - lbDrive.getCurrentPosition()) < 10) {
+            // continue rotation until at target angle.
+            telemetry.addData("Turn Target Direction", lbDrive.getTargetPosition());
+            telemetry.addData("Turn Current Direction", lbDrive.getCurrentPosition());
+            telemetry.update();
         }
     }
 
@@ -270,15 +307,137 @@ public class Movement {
         return turnDiff;
     }
 
-    public void GoToAprilTag(int tagNumber, AprilTagProcessor myAprilTag){
-        List<AprilTagDetection> tag = myAprilTag.getDetections();
-        for (int i = 0; i<tag.size(); i++){
-
-            if(tag.get(i).id==tagNumber){
-
-            }
-
-
+    public boolean GoToAprilTag(int tagNumber) {
+        double targetX = 0;
+        // The AprilTag is not centered on the LEFT and RIGHT backdrop zones, adjust X targets
+        if (tagNumber == 1 || tagNumber == 4) {
+            targetX = 0.5;
+        } else if (tagNumber == 3 || tagNumber == 6) {
+            targetX = -0.5;
         }
+        double targetY = 10;
+        double targetAngle = 0;
+
+        // Translate the tagNumber requested to know the angle of the backdrop in robot IMU
+        if (tagNumber <= 3) {
+            targetAngle = -90;
+        } else if (tagNumber > 3) {
+            targetAngle = 90;
+        }
+
+        currentAngle = imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.DEGREES);
+
+        // Scan for April Tag detections and update current values if you find one.
+        List<AprilTagDetection> tag = myAprilTagProcessor.getDetections();
+        if (tag != null) {
+            for (int i = 0; i < tag.size(); i++) {
+                if (tag.get(i) != null) {
+                    if (tag.get(i).id == tagNumber) {
+                        currentX = tag.get(i).ftcPose.x;
+                        currentY = tag.get(i).ftcPose.y;
+                        blinkinLED.setPattern(RevBlinkinLedDriver.BlinkinPattern.GREEN);
+                        tagDetected = true;
+                    }
+                }
+            }
+        }
+
+        // Update Telemetry with key data
+        telemetry.addData("tags found: ", tag.size());
+        telemetry.addData("AlignStage: ", alignStage);
+        telemetry.addData("Current X: ", currentX);
+        telemetry.addData("Target X: ", targetX);
+        telemetry.addData("Current Y: ", currentY);
+        telemetry.addData("Target Y: ", targetY);
+        telemetry.addData("Current Angle: ", imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.DEGREES));
+        telemetry.addData("Target Angle: ", targetAngle);
+        telemetry.update();
+
+        // Like the driver control TeleOp, consider the needed axial, lateral and yaw for
+        // the motion needed to get to the April Tag.
+        // axial from drive is gamepad1.left_stick_y;
+        // lateral from drive is -gamepad1.left_stick_x;
+        // yaw from drive is -gamepad1.right_stick_x;
+
+        // Stage 0 - Ensure that motor powers are zeroed and switch to RUN_USING_ENCODER mode.
+        if (alignStage == 0) {
+            // Motors will bee to be in RUN_USING_ENCODER for this vs. RUN_TO_POSITION mode
+            // Refactor this to the Movement class to make a method to switch motors to run
+            // on a defined power level.
+            lfDrive.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+            lbDrive.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+            rfDrive.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+            rbDrive.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+            // Set default to BRAKE mode for control
+            lfDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+            lbDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+            rfDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+            rbDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+            // Set Powers to 0 for safety and not knowing what they are set to.
+            StopMotors();
+            // Init variables for motion
+            axial = 0;
+            lateral = 0;
+            yaw = 0;
+            // increment alignStage
+            alignStage = 1;
+        }
+
+        // If no tag is detected, creep backwards.
+        if (!tagDetected){
+            axial = -0.10;
+            aprilTagAligned = false;
+        }
+
+        // Square up the robot to the backdrop (from targetAngle above)
+        // If the yaw is +, apply -yaw, if the yaw if -, apply +yaw (-right_stick_x in robot mode)
+        if (abs (targetAngle - currentAngle) > 2) {
+            yaw = -Movement.CalcTurnError(targetAngle, currentAngle) / 45;
+            if (yaw > 0.3){
+                yaw = 0.3;
+            } else if (yaw < -0.3){
+                yaw = -0.3;
+            }
+        } else {
+            yaw = 0;
+        }
+
+        // Slide laterally to correct for X or right motion
+        // If the x distance is > 1 inch off of targetX move left or right accordingly
+        // To make the robot go right, reduce the lateral (-left_stick_x in robot mode)
+        // To make the robot go left, increase the lateral (-left_stick_x in robot mode)
+        if (targetX - currentX > 1) {
+            lateral = 0.2;
+        } else if (targetX - currentX < -1) {
+            lateral = -0.2;
+        }else {
+            lateral = 0;
+        }
+
+        // Back the robot up to the right distance to raise the lift
+        if (currentY > targetY) {
+            axial = -0.15;
+        } else {
+            axial = 0;
+        }
+
+        // Combine the axial, lateral and yaw factors to be powers
+        double leftFrontPower = axial + lateral + yaw;
+        double rightFrontPower = axial - lateral - yaw;
+        double leftBackPower = axial - lateral + yaw;
+        double rightBackPower = axial + lateral - yaw;
+
+        // Apply calculated values to drive motors
+        lfDrive.setPower(leftFrontPower);
+        rfDrive.setPower(rightFrontPower);
+        lbDrive.setPower(leftBackPower);
+        rbDrive.setPower(rightBackPower);
+
+        // Test to see if we are at all three parts of our desired position and we are aligned.
+        if (abs (targetX - currentX) < 1 && currentY < targetY && abs (targetAngle - currentAngle) < 2){
+            aprilTagAligned = true;
+            blinkinLED.setPattern(RevBlinkinLedDriver.BlinkinPattern.COLOR_WAVES_OCEAN_PALETTE);
+        }
+        return aprilTagAligned;
     }
 }
