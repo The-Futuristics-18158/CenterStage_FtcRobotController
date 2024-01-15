@@ -32,6 +32,7 @@ package org.firstinspires.ftc.teamcode.opmode.teleop;
 import static java.lang.Math.abs;
 
 import android.os.SystemClock;
+import android.util.Size;
 
 import com.qualcomm.hardware.rev.RevBlinkinLedDriver;
 import com.qualcomm.robotcore.eventloop.opmode.Disabled;
@@ -46,11 +47,15 @@ import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
 import org.firstinspires.ftc.robotcore.external.JavaUtil;
+import org.firstinspires.ftc.robotcore.external.hardware.camera.WebcamName;
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import org.firstinspires.ftc.teamcode.utility.IntakeMovement;
 import org.firstinspires.ftc.teamcode.utility.LinearSlideMovement;
 import org.firstinspires.ftc.teamcode.utility.Movement;
+import org.firstinspires.ftc.vision.VisionPortal;
+import org.firstinspires.ftc.vision.apriltag.AprilTagGameDatabase;
+import org.firstinspires.ftc.vision.apriltag.AprilTagProcessor;
 
 /*
  * This file contains an example of a Linear "OpMode".
@@ -103,12 +108,44 @@ public class Gge_BasicOmniOpMode_Linear extends LinearOpMode {
     Servo conveyor;
 
     private IMU imu;
+    // Used for managing the AprilTag detection process.
+    private AprilTagProcessor myAprilTagProcessor;
+    // Used to manage the video source.
+    private VisionPortal myVisionPortal;
 
+    Movement moveTo;
     IntakeMovement intake;
     LinearSlideMovement linearslidemovement;
 
     @Override
     public void runOpMode() {
+
+        // Build the AprilTag processor
+        // set parameters of AprilTagProcessor, then use Builder to build
+        myAprilTagProcessor = new AprilTagProcessor.Builder()
+                //.setTagLibrary(myAprilTagLibrary)
+                //.setNumThreads(tbd)
+                .setTagFamily(AprilTagProcessor.TagFamily.TAG_36h11)
+                .setDrawTagID(true)
+                .setDrawTagOutline(true)
+                .setDrawAxes(true)
+                .setDrawCubeProjection(true)
+                .setTagLibrary(AprilTagGameDatabase.getCenterStageTagLibrary())
+                .build();
+
+        // set apriltag resolution decimation factor
+        myAprilTagProcessor.setDecimation(2);
+
+        // Build the vision portal
+        // set parameters,then use vision builder.
+        myVisionPortal = new VisionPortal.Builder()
+                .setCamera(hardwareMap.get(WebcamName.class, "gge_backup_cam"))
+                .addProcessor(myAprilTagProcessor)
+                .setCameraResolution(new Size(640, 480))
+                //.setCameraResolution(new Size(1280,720))
+                .enableLiveView(false)
+                .setStreamFormat(VisionPortal.StreamFormat.MJPEG)
+                .build();
 
         // Initialize the hardware variables. Note that the strings used here must correspond
         // to the names assigned during the robot configuration step on the DS or RC devices.
@@ -187,6 +224,7 @@ public class Gge_BasicOmniOpMode_Linear extends LinearOpMode {
         wrist.setDirection(DcMotorSimple.Direction.REVERSE);
 
         intake = new IntakeMovement(rightClaw, leftClaw, wrist, conveyor, telemetry);
+        moveTo = new Movement(leftFrontDrive, rightFrontDrive, leftBackDrive, rightBackDrive, imu, blinkinLED, myAprilTagProcessor, myVisionPortal, telemetry);
         linearslidemovement = new LinearSlideMovement(leftLinearSlide, rightLinearSlide, intake);
 
         //drive speed limiter
@@ -223,7 +261,7 @@ public class Gge_BasicOmniOpMode_Linear extends LinearOpMode {
                 leftBackDrive.setPower(0);
                 rightBackDrive.setPower(0);
                 // If the wrist is down, pickup a piece.
-                if (wrist.getCurrentPosition() > (intake.WRIST_DOWN_TICKS - 10)) {
+                if (wrist.getCurrentPosition() > (IntakeMovement.WRIST_DOWN_TICKS - 10)) {
                     // Pickup automation
                     intake.GrabAndStowPixel();
                     intake.AdvanceConveyor();
@@ -237,6 +275,13 @@ public class Gge_BasicOmniOpMode_Linear extends LinearOpMode {
                 blinkinLED.setPattern(RevBlinkinLedDriver.BlinkinPattern.COLOR_WAVES_LAVA_PALETTE);
             } else if (gamepad1.y) {
                 blinkinLED.setPattern(RevBlinkinLedDriver.BlinkinPattern.COLOR_WAVES_OCEAN_PALETTE);
+            } else if (gamepad1.b) {
+                if (moveTo.GoToAprilTag(3)){
+                    telemetry.addData ("AprilTag Aligned To: ", 3);
+                } else {
+                    telemetry.addData ("Targeting April Tag: ", 3);
+                }
+                telemetry.update();
             }
 
             if(gamepad1.dpad_down){
@@ -245,7 +290,7 @@ public class Gge_BasicOmniOpMode_Linear extends LinearOpMode {
                 linearslidemovement.LinearSlidesMiddle();
             } else if (gamepad1.dpad_right) {
                 linearslidemovement.LinearSlidesBottom();
-                while (leftLinearSlide.getCurrentPosition() > (linearslidemovement.bottom_linearslide_ticks + 5)){
+                while (leftLinearSlide.getCurrentPosition() > (LinearSlideMovement.bottom_linearslide_ticks + 5)){
                     // pause to wait for the slide to lower before raising the wrist back up.
                 }
                 intake.FlipUp();
@@ -270,9 +315,9 @@ public class Gge_BasicOmniOpMode_Linear extends LinearOpMode {
             powerFactor = basePowerFacter + (gamepad1.right_trigger * boostPowerFacter);
 
             // If the linear slides are raised, force powerFactor to slow (i.e. 25%)
-            if (leftLinearSlide.getCurrentPosition() > linearslidemovement.mid_linearslide_ticks + 100) {
+            if (leftLinearSlide.getCurrentPosition() > LinearSlideMovement.mid_linearslide_ticks + 100) {
                 powerFactor = 0.35;
-            } else if (leftLinearSlide.getCurrentPosition() > linearslidemovement.low_linearslide_ticks + 100) {
+            } else if (leftLinearSlide.getCurrentPosition() > LinearSlideMovement.low_linearslide_ticks + 100) {
                 powerFactor = 0.50;
             }
             double max;
@@ -294,7 +339,7 @@ public class Gge_BasicOmniOpMode_Linear extends LinearOpMode {
             }
 
             // Compensate the stick values to ensure that the IMU considers when the robot pulls to one side or another.
-            if (yaw == 0 && gamepad1.back == false && abs(imu.getRobotYawPitchRollAngles().getPitch(AngleUnit.DEGREES)) < 10) {
+            if (yaw == 0 && !gamepad1.back && abs(imu.getRobotYawPitchRollAngles().getPitch(AngleUnit.DEGREES)) < 10) {
                 if (autoDriveTimeOk < runtime.milliseconds()){
                     // if the driver is not turning or resetting the Yaw, take the bearing desired
                     if (directionLocked == false){
