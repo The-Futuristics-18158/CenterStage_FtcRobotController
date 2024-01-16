@@ -297,7 +297,7 @@ public class Movement {
      * @param desiredDirection - which direction you want to go to
      * @param currentDirection - your current direction
      */
-    public static double CalcTurnError(double desiredDirection, double currentDirection){
+    public double CalcTurnError(double desiredDirection, double currentDirection){
         double turnDiff = desiredDirection - currentDirection;
         if (turnDiff < -180) {
             turnDiff = turnDiff + 360;
@@ -315,7 +315,7 @@ public class Movement {
         } else if (tagNumber == 3 || tagNumber == 6) {
             targetX = -0.5;
         }
-        double targetY = 10;
+        double targetY = 5;
         double targetAngle = 0;
 
         // Translate the tagNumber requested to know the angle of the backdrop in robot IMU
@@ -361,7 +361,7 @@ public class Movement {
 
         // Stage 0 - Ensure that motor powers are zeroed and switch to RUN_USING_ENCODER mode.
         if (alignStage == 0) {
-            // Motors will bee to be in RUN_USING_ENCODER for this vs. RUN_TO_POSITION mode
+            // Motors will need to be in RUN_USING_ENCODER for this vs. RUN_TO_POSITION mode
             // Refactor this to the Movement class to make a method to switch motors to run
             // on a defined power level.
             lfDrive.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
@@ -373,13 +373,7 @@ public class Movement {
             lbDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
             rfDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
             rbDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
-            // Set Powers to 0 for safety and not knowing what they are set to.
-            StopMotors();
-            // Init variables for motion
-            axial = 0;
-            lateral = 0;
-            yaw = 0;
-            // increment alignStage
+            //
             alignStage = 1;
         }
 
@@ -392,7 +386,7 @@ public class Movement {
         // Square up the robot to the backdrop (from targetAngle above)
         // If the yaw is +, apply -yaw, if the yaw if -, apply +yaw (-right_stick_x in robot mode)
         if (abs (targetAngle - currentAngle) > 2) {
-            yaw = -Movement.CalcTurnError(targetAngle, currentAngle) / 45;
+            yaw = -CalcTurnError(targetAngle, currentAngle) / 45;
             if (yaw > 0.3){
                 yaw = 0.3;
             } else if (yaw < -0.3){
@@ -406,17 +400,19 @@ public class Movement {
         // If the x distance is > 1 inch off of targetX move left or right accordingly
         // To make the robot go right, reduce the lateral (-left_stick_x in robot mode)
         // To make the robot go left, increase the lateral (-left_stick_x in robot mode)
-        if (targetX - currentX > 1) {
+        lateral = (targetX - currentY) / 20;
+        if (targetX - currentX > 1 && lateral < 0.2) {
             lateral = 0.2;
-        } else if (targetX - currentX < -1) {
+        } else if (targetX - currentX < -1 && lateral > -0.2) {
             lateral = -0.2;
         }else {
             lateral = 0;
         }
 
         // Back the robot up to the right distance to raise the lift
-        if (currentY > targetY) {
-            axial = -0.15;
+        axial = -(currentY - targetY) / 40;
+        if ((currentY > targetY) && axial < -0.20) {
+            axial = -0.20;
         } else {
             axial = 0;
         }

@@ -208,10 +208,10 @@ public class Gge_BasicOmniOpMode_Linear extends LinearOpMode {
         // when you first test your robot, push the left joystick forward and observe the direction the wheels turn.
         // Reverse the direction (flip FORWARD <-> REVERSE ) of any wheel that runs backward
         // Keep testing until ALL the wheels move the robot forward when you push the left joystick forward.
-        leftFrontDrive.setDirection(DcMotor.Direction.REVERSE);
-        leftBackDrive.setDirection(DcMotor.Direction.REVERSE);
-        rightFrontDrive.setDirection(DcMotor.Direction.FORWARD);
-        rightBackDrive.setDirection(DcMotor.Direction.FORWARD);
+        leftFrontDrive.setDirection(DcMotor.Direction.FORWARD);
+        leftBackDrive.setDirection(DcMotor.Direction.FORWARD);
+        rightFrontDrive.setDirection(DcMotor.Direction.REVERSE);
+        rightBackDrive.setDirection(DcMotor.Direction.REVERSE);
 
         // Set default power effect to motor to cause braking for safety
         leftFrontDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
@@ -272,16 +272,20 @@ public class Gge_BasicOmniOpMode_Linear extends LinearOpMode {
             }
 
             if (gamepad1.x) {
-                blinkinLED.setPattern(RevBlinkinLedDriver.BlinkinPattern.COLOR_WAVES_LAVA_PALETTE);
-            } else if (gamepad1.y) {
-                blinkinLED.setPattern(RevBlinkinLedDriver.BlinkinPattern.COLOR_WAVES_OCEAN_PALETTE);
-            } else if (gamepad1.b) {
-                if (moveTo.GoToAprilTag(3)){
-                    telemetry.addData ("AprilTag Aligned To: ", 3);
-                } else {
-                    telemetry.addData ("Targeting April Tag: ", 3);
+                while (!moveTo.GoToAprilTag(1) && gamepad1.x){
+                    telemetry.addData ("Targeting April Tag: ", 1);
+                    telemetry.update();
                 }
-                telemetry.update();
+            } else if (gamepad1.y) {
+                while (!moveTo.GoToAprilTag(2) && gamepad1.y){
+                    telemetry.addData ("Targeting April Tag: ", 2);
+                    telemetry.update();
+                }
+            } else if (gamepad1.b) {
+                while (!moveTo.GoToAprilTag(3) && gamepad1.b){
+                    telemetry.addData ("Targeting April Tag: ", 3);
+                    telemetry.update();
+                }
             }
 
             if(gamepad1.dpad_down){
@@ -323,8 +327,8 @@ public class Gge_BasicOmniOpMode_Linear extends LinearOpMode {
             double max;
 
             // POV Mode uses left joystick to go forward & strafe, and right joystick to rotate.
-            double axial   =  gamepad1.left_stick_y;  // Note: on Logitech, pushing stick forward gives negative value, make - then
-            double lateral =  -gamepad1.left_stick_x;
+            double axial   =  -gamepad1.left_stick_y;  // Note: on Logitech, pushing stick forward gives negative value, make - then
+            double lateral =  gamepad1.left_stick_x;
             double yaw     = -gamepad1.right_stick_x;
 
             // Set dead zone of the joysticks for very low values
@@ -347,9 +351,9 @@ public class Gge_BasicOmniOpMode_Linear extends LinearOpMode {
                         targetDirection = DirectionNow;
                     }
                     // Whenever there is error in the direction, accumulate this over time (i gain).
-                    accumulatedError += 0.0002 * Movement.CalcTurnError (targetDirection, DirectionNow);
+                    accumulatedError += 0.0002 * moveTo.CalcTurnError (targetDirection, DirectionNow);
                     // We already know that joystick yaw is 0, apply an automatic rotational angle to compensate for rotation.
-                    yaw = accumulatedError + 0.01 * Movement.CalcTurnError (targetDirection, DirectionNow);
+                    yaw = accumulatedError + 0.01 * moveTo.CalcTurnError (targetDirection, DirectionNow);
                 }
             } else {
                 // Reset the autoDriveDelay
@@ -367,10 +371,10 @@ public class Gge_BasicOmniOpMode_Linear extends LinearOpMode {
 
             // Combine the joystick requests for each axis-motion to determine each wheel's power.
             // Set up a variable for each drive wheel to save the power level for telemetry.
-            double leftFrontPower  = field_axial + field_lateral + yaw;
-            double rightFrontPower = field_axial - field_lateral - yaw;
-            double leftBackPower   = field_axial - field_lateral + yaw;
-            double rightBackPower  = field_axial + field_lateral - yaw;
+            double leftFrontPower  = field_axial + field_lateral - yaw;
+            double rightFrontPower = field_axial - field_lateral + yaw;
+            double leftBackPower   = field_axial - field_lateral - yaw;
+            double rightBackPower  = field_axial + field_lateral + yaw;
 
             // Normalize the values so no wheel power exceeds 100%
             // This ensures that the robot maintains the desired motion.
