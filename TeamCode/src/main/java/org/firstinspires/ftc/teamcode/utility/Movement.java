@@ -2,10 +2,20 @@ package org.firstinspires.ftc.teamcode.utility;
 
 import static java.lang.Math.abs;
 
+import com.arcrobotics.ftclib.geometry.Rotation2d;
+import com.arcrobotics.ftclib.geometry.Translation2d;
+import com.arcrobotics.ftclib.kinematics.Odometry;
+import com.arcrobotics.ftclib.kinematics.wpilibkinematics.MecanumDriveKinematics;
+import com.arcrobotics.ftclib.kinematics.wpilibkinematics.MecanumDriveOdometry;
+import com.arcrobotics.ftclib.kinematics.wpilibkinematics.MecanumDriveWheelSpeeds;
+import com.arcrobotics.ftclib.kotlin.extensions.geometry.Translation2dExtKt;
+import com.arcrobotics.ftclib.trajectory.constraint.MecanumDriveKinematicsConstraint;
 import com.qualcomm.hardware.rev.RevBlinkinLedDriver;
 import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
 import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.IMU;
+import com.qualcomm.robotcore.util.ElapsedTime;
 
 import org.firstinspires.ftc.robotcore.external.Telemetry;
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
@@ -27,11 +37,18 @@ public class Movement {
         LEFT,
         RIGHT
     }
-    private DcMotor lfDrive;
-    private DcMotor rfDrive;
-    private DcMotor lbDrive;
-    private DcMotor rbDrive;
+    private DcMotorEx lfDrive;
+    private DcMotorEx rfDrive;
+    private DcMotorEx lbDrive;
+    private DcMotorEx rbDrive;
     private IMU imu;
+    /**
+     * Setup Kinematics and Odometry objects from FTClib
+     */
+    MecanumDriveKinematics kinematics;
+    MecanumDriveOdometry odometry;
+    ElapsedTime odometryTimer;
+    MecanumDriveWheelSpeeds odometrySpeeds;
     private RevBlinkinLedDriver blinkinLED;
     private Telemetry telemetry;
 
@@ -47,6 +64,8 @@ public class Movement {
     int alignStage = 0;
     double currentX = -2;
     double currentY = 15;
+    double tagRange = 15;
+    double tagBearing = 0;
     boolean tagDetected = false;
     boolean aprilTagAligned = false;
     double axial = 0;
@@ -68,8 +87,8 @@ public class Movement {
      * @param myVisionPortal1      the Vision Portal,
      * @param telemetry1           telemetry for the Drive Station
      */
-    public Movement(DcMotor leftFrontDrive, DcMotor rightFrontDrive,
-                    DcMotor leftBackDrive, DcMotor rightBackDrive, IMU imu1, RevBlinkinLedDriver blinkinLED1, AprilTagProcessor myAprilTagProcessor1, VisionPortal myVisionPortal1, Telemetry telemetry1){
+    public Movement(DcMotorEx leftFrontDrive, DcMotorEx rightFrontDrive,
+                    DcMotorEx leftBackDrive, DcMotorEx rightBackDrive, IMU imu1, RevBlinkinLedDriver blinkinLED1, AprilTagProcessor myAprilTagProcessor1, VisionPortal myVisionPortal1, MecanumDriveOdometry odometry1, MecanumDriveKinematics kinematics1, ElapsedTime odometryTimer1, MecanumDriveWheelSpeeds odometrySpeeds1, Telemetry telemetry1){
         lfDrive = leftFrontDrive;
         rfDrive = rightFrontDrive;
         lbDrive = leftBackDrive;
@@ -78,6 +97,10 @@ public class Movement {
         blinkinLED = blinkinLED1;
         myAprilTagProcessor = myAprilTagProcessor1;
         myVisionPortal = myVisionPortal1;
+        kinematics = kinematics1;
+        odometry = odometry1;
+        odometryTimer = odometryTimer1;
+        odometrySpeeds = odometrySpeeds1;
         telemetry = telemetry1;
     }
 
@@ -113,7 +136,38 @@ public class Movement {
         rbDrive.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER); // Reset the motor encoder
         //rbDrive.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER); // Turn the motor back on when we are done
 
+        // Setup the 2d translation for GGE as coordinates of each motor, relative to the center of GGE.
+        // in Meters - translated from inches as inches * 2.54 / 100
+        Translation2d lfMotorMeters = new Translation2d(-(6 * 2.54 / 100), (6 * 2.54 / 100));
+        Translation2d rfMotorMeters = new Translation2d((6 * 2.54 / 100), (6 * 2.54 / 100));
+        Translation2d lbMotorMeters = new Translation2d(-(6 * 2.54 / 100), -(6 * 2.54 / 100));
+        Translation2d rbMotorMeters = new Translation2d((6 * 2.54 / 100), -(6 * 2.54 / 100));
+
+        // Create Mecanum Kinematics
+        kinematics = new MecanumDriveKinematics (lfMotorMeters, rfMotorMeters, lbMotorMeters, rbMotorMeters);
+
+        // Create Mecanum Odometry
+        odometry = new MecanumDriveOdometry(kinematics, new Rotation2d (0.0));
+
+        odometryTimer = new ElapsedTime();
+        odometryTimer.reset();
     }
+
+    /**
+     * Setup a method to return the wheel speeds from GGE
+     * @return
+     */
+    public MecanumDriveWheelSpeeds GetWheelSpeeds (){
+        MecanumDriveWheelSpeeds speeds = new MecanumDriveWheelSpeeds();
+        // 1 entered as a placeholder for a future constant - fix as needed
+        speeds.frontLeftMetersPerSecond = 1 * lfDrive.getVelocity();
+        speeds.frontRightMetersPerSecond = 1 * rfDrive.getVelocity();
+        speeds.rearLeftMetersPerSecond = 1 * lbDrive.getVelocity();
+        speeds.rearRightMetersPerSecond = 1 * rbDrive.getVelocity();
+
+        return speeds;
+    }
+
     /**
      * Stops all drive motors.
      */
@@ -315,7 +369,7 @@ public class Movement {
         } else if (tagNumber == 3 || tagNumber == 6) {
             targetX = -0.5;
         }
-        double targetY = 5;
+        double targetY = 10;
         double targetAngle = 0;
 
         // Translate the tagNumber requested to know the angle of the backdrop in robot IMU
@@ -335,6 +389,8 @@ public class Movement {
                     if (tag.get(i).id == tagNumber) {
                         currentX = tag.get(i).ftcPose.x;
                         currentY = tag.get(i).ftcPose.y;
+                        tagRange = tag.get(i).ftcPose.range;
+                        tagBearing = tag.get(i).ftcPose.bearing;
                         blinkinLED.setPattern(RevBlinkinLedDriver.BlinkinPattern.GREEN);
                         tagDetected = true;
                     }
@@ -349,6 +405,8 @@ public class Movement {
         telemetry.addData("Target X: ", targetX);
         telemetry.addData("Current Y: ", currentY);
         telemetry.addData("Target Y: ", targetY);
+        telemetry.addData("Tag Range: ", tagRange);
+        telemetry.addData("Tag Bearing: ", tagBearing);
         telemetry.addData("Current Angle: ", imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.DEGREES));
         telemetry.addData("Target Angle: ", targetAngle);
         telemetry.update();
@@ -377,20 +435,18 @@ public class Movement {
             alignStage = 1;
         }
 
-        // If no tag is detected, creep backwards.
-        if (!tagDetected){
-            axial = -0.10;
-            aprilTagAligned = false;
-        }
+        axial = -0.10;
+        // Assume april tag is not aligned at start.
+        aprilTagAligned = false;
 
         // Square up the robot to the backdrop (from targetAngle above)
         // If the yaw is +, apply -yaw, if the yaw if -, apply +yaw (-right_stick_x in robot mode)
         if (abs (targetAngle - currentAngle) > 2) {
             yaw = -CalcTurnError(targetAngle, currentAngle) / 45;
-            if (yaw > 0.3){
-                yaw = 0.3;
-            } else if (yaw < -0.3){
-                yaw = -0.3;
+            if (yaw > 0.2){
+                yaw = 0.2;
+            } else if (yaw < -0.2){
+                yaw = -0.2;
             }
         } else {
             yaw = 0;
@@ -400,19 +456,19 @@ public class Movement {
         // If the x distance is > 1 inch off of targetX move left or right accordingly
         // To make the robot go right, reduce the lateral (-left_stick_x in robot mode)
         // To make the robot go left, increase the lateral (-left_stick_x in robot mode)
-        lateral = (targetX - currentY) / 20;
-        if (targetX - currentX > 1 && lateral < 0.2) {
+        //lateral = (targetX - currentY) / 20;
+        if (targetX - currentX > 1) {
             lateral = 0.2;
-        } else if (targetX - currentX < -1 && lateral > -0.2) {
+        } else if (targetX - currentX < -1) {
             lateral = -0.2;
         }else {
             lateral = 0;
         }
 
         // Back the robot up to the right distance to raise the lift
-        axial = -(currentY - targetY) / 40;
-        if ((currentY > targetY) && axial < -0.20) {
-            axial = -0.20;
+        //axial = -(currentY - targetY) / 40;
+        if (currentY > targetY) {
+            axial = -0.15;
         } else {
             axial = 0;
         }

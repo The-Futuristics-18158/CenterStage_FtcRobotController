@@ -2,6 +2,9 @@ package org.firstinspires.ftc.teamcode.opmode.auto;
 
 import android.util.Size;
 
+import com.arcrobotics.ftclib.kinematics.wpilibkinematics.MecanumDriveKinematics;
+import com.arcrobotics.ftclib.kinematics.wpilibkinematics.MecanumDriveOdometry;
+import com.arcrobotics.ftclib.kinematics.wpilibkinematics.MecanumDriveWheelSpeeds;
 import com.qualcomm.hardware.rev.RevBlinkinLedDriver;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.hardware.DcMotor;
@@ -37,11 +40,15 @@ public abstract class AutoBase extends LinearOpMode {
     static final int STREAM_WIDTH = 1280; // modify for your camera
     static final int STREAM_HEIGHT = 960; // modify for your camera
     protected ElapsedTime runtime = new ElapsedTime(); //
-    protected DcMotor leftFrontDrive = null;
-    protected DcMotor leftBackDrive = null;
-    protected DcMotor rightFrontDrive = null;
-    protected DcMotor rightBackDrive = null;
+    protected DcMotorEx leftFrontDrive = null;
+    protected DcMotorEx leftBackDrive = null;
+    protected DcMotorEx rightFrontDrive = null;
+    protected DcMotorEx rightBackDrive = null;
     protected IMU imu;
+    MecanumDriveKinematics kinematics;
+    MecanumDriveOdometry odometry;
+    ElapsedTime odometryTimer = new ElapsedTime();
+    MecanumDriveWheelSpeeds odometrySpeeds = new MecanumDriveWheelSpeeds();
     private RevBlinkinLedDriver blinkinLED;
     protected GamePieceLocation gamepieceLocation;
     Servo leftClaw;
@@ -60,9 +67,9 @@ public abstract class AutoBase extends LinearOpMode {
     IntakeMovement intake;
     LinearSlideMovement linearSlideMove;
     int state;
-    private DcMotor leftLinearSlide = null;
-    private DcMotor rightLinearSlide = null;
-    private DcMotor wrist = null;
+    private DcMotorEx leftLinearSlide = null;
+    private DcMotorEx rightLinearSlide = null;
+    private DcMotorEx wrist = null;
 
 
     // Motor is 28 ticks per revolution
@@ -124,14 +131,14 @@ public abstract class AutoBase extends LinearOpMode {
 
         // Initialize the hardware variables. Note that the strings used here must correspond
         // to the names assigned during the robot configuration step on the DS or RC devices.
-        leftFrontDrive = hardwareMap.get(DcMotor.class, "left_front_drive");
-        leftBackDrive = hardwareMap.get(DcMotor.class, "left_back_drive");
-        rightFrontDrive = hardwareMap.get(DcMotor.class, "right_front_drive");
-        rightBackDrive = hardwareMap.get(DcMotor.class, "right_back_drive");
+        leftFrontDrive = hardwareMap.get(DcMotorEx.class, "left_front_drive");
+        leftBackDrive = hardwareMap.get(DcMotorEx.class, "left_back_drive");
+        rightFrontDrive = hardwareMap.get(DcMotorEx.class, "right_front_drive");
+        rightBackDrive = hardwareMap.get(DcMotorEx.class, "right_back_drive");
 
-        leftLinearSlide = hardwareMap.get(DcMotor.class, "left_linear_slide");
-        rightLinearSlide = hardwareMap.get(DcMotor.class, "right_linear_slide");
-        wrist = hardwareMap.get(DcMotor.class, "wrist");
+        leftLinearSlide = hardwareMap.get(DcMotorEx.class, "left_linear_slide");
+        rightLinearSlide = hardwareMap.get(DcMotorEx.class, "right_linear_slide");
+        wrist = hardwareMap.get(DcMotorEx.class, "wrist");
 
         leftClaw = hardwareMap.get(Servo.class, "left_claw");
         rightClaw = hardwareMap.get(Servo.class, "right_claw");
@@ -154,15 +161,15 @@ public abstract class AutoBase extends LinearOpMode {
         // ...F as holding / static force (set first)
         // For Mecanum drive, 8, 0, 0.5, 5 works well on Tiny
         // ... and 7, 0.2, 0.1, 8 works on Rosie (heavier bot)
-        ((DcMotorEx) leftFrontDrive).setVelocityPIDFCoefficients(10, 0.2, 0.1, 8);
-        ((DcMotorEx) leftBackDrive).setVelocityPIDFCoefficients(10, 0.2, 0.1, 8);
-        ((DcMotorEx) rightFrontDrive).setVelocityPIDFCoefficients(10, 0.2, 0.1, 8);
-        ((DcMotorEx) rightBackDrive).setVelocityPIDFCoefficients(10, 0.2, 0.1, 8);
+        leftFrontDrive.setVelocityPIDFCoefficients(10, 0.2, 0.1, 8);
+        leftBackDrive.setVelocityPIDFCoefficients(10, 0.2, 0.1, 8);
+        rightFrontDrive.setVelocityPIDFCoefficients(10, 0.2, 0.1, 8);
+        rightBackDrive.setVelocityPIDFCoefficients(10, 0.2, 0.1, 8);
         // For Lift, PIDF values set to reduce jitter on high lift
-        ((DcMotorEx) leftLinearSlide).setVelocityPIDFCoefficients(8, 0.75, 0, 8);
-        ((DcMotorEx) rightLinearSlide).setVelocityPIDFCoefficients(8, 0.75, 0, 8);
+        leftLinearSlide.setVelocityPIDFCoefficients(8, 0.75, 0, 8);
+        rightLinearSlide.setVelocityPIDFCoefficients(8, 0.75, 0, 8);
         // For Wrist, PIDF values set to reduce jitter
-        ((DcMotorEx) wrist).setVelocityPIDFCoefficients(15, 0.2, 0.05, 16);
+        wrist.setVelocityPIDFCoefficients(15, 0.2, 0.05, 16);
 
         // ########################################################################################
         // !!!            IMPORTANT Drive Information. Test your motor directions.            !!!!!
@@ -185,7 +192,7 @@ public abstract class AutoBase extends LinearOpMode {
 
         intake = new IntakeMovement(rightClaw, leftClaw, wrist, conveyor, telemetry);
         // Pass all needed hardware to the Movement class including the AprilTag detection for refactored GoToAprilTag
-        moveTo = new Movement(leftFrontDrive, rightFrontDrive, leftBackDrive, rightBackDrive, imu, blinkinLED, myAprilTagProcessor, myVisionPortal, telemetry);
+        moveTo = new Movement(leftFrontDrive, rightFrontDrive, leftBackDrive, rightBackDrive, imu, blinkinLED, myAprilTagProcessor, myVisionPortal, odometry, kinematics, odometryTimer, odometrySpeeds, telemetry);
         linearSlideMove = new LinearSlideMovement(leftLinearSlide, rightLinearSlide, intake);
 
         state = 0;

@@ -31,20 +31,18 @@ package org.firstinspires.ftc.teamcode.opmode.teleop;
 
 import static java.lang.Math.abs;
 
-import android.os.SystemClock;
 import android.util.Size;
 
+import com.arcrobotics.ftclib.geometry.Rotation2d;
 import com.arcrobotics.ftclib.kinematics.wpilibkinematics.MecanumDriveKinematics;
 import com.arcrobotics.ftclib.kinematics.wpilibkinematics.MecanumDriveOdometry;
 import com.arcrobotics.ftclib.kinematics.wpilibkinematics.MecanumDriveWheelSpeeds;
 import com.qualcomm.hardware.rev.RevBlinkinLedDriver;
-import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
-import com.qualcomm.robotcore.hardware.DistanceSensor;
 import com.qualcomm.robotcore.hardware.IMU;
 import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.util.ElapsedTime;
@@ -52,7 +50,6 @@ import com.qualcomm.robotcore.util.ElapsedTime;
 import org.firstinspires.ftc.robotcore.external.JavaUtil;
 import org.firstinspires.ftc.robotcore.external.hardware.camera.WebcamName;
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
-import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import org.firstinspires.ftc.teamcode.utility.IntakeMovement;
 import org.firstinspires.ftc.teamcode.utility.LinearSlideMovement;
 import org.firstinspires.ftc.teamcode.utility.Movement;
@@ -88,9 +85,9 @@ import org.firstinspires.ftc.vision.apriltag.AprilTagProcessor;
  * Remove or comment out the @Disabled line to add this OpMode to the Driver Station OpMode list
  */
 
-@TeleOp(name="GGE Drive T2", group="Linear OpMode")
+@TeleOp(name="GGE Odometry TeleOp", group="Linear OpMode")
 //@Disabled
-public class Gge_BasicOmniOpMode_Linear extends LinearOpMode {
+public class Gge_Odometry_TeleOp extends LinearOpMode {
 
     // Declare OpMode members for each of the 4 motors.
     private ElapsedTime runtime = new ElapsedTime();
@@ -100,10 +97,10 @@ public class Gge_BasicOmniOpMode_Linear extends LinearOpMode {
     private DcMotorEx rightFrontDrive = null;
     private DcMotorEx rightBackDrive = null;
 
-    private DcMotor leftLinearSlide = null;
-    private DcMotor rightLinearSlide = null;
+    private DcMotorEx leftLinearSlide = null;
+    private DcMotorEx rightLinearSlide = null;
 
-    private DcMotor wrist = null;
+    private DcMotorEx wrist = null;
 
     private RevBlinkinLedDriver blinkinLED;
     Servo leftClaw;
@@ -111,12 +108,16 @@ public class Gge_BasicOmniOpMode_Linear extends LinearOpMode {
     Servo conveyor;
 
     private IMU imu;
+    // Used for managing the AprilTag detection process.
+
+    /**
+     * Setup Kinematics and Odometry objects from FTClib
+     */
     MecanumDriveKinematics kinematics;
     MecanumDriveOdometry odometry;
-    ElapsedTime odometryTimer;
-    MecanumDriveWheelSpeeds odometrySpeeds;
+    ElapsedTime odometryTimer = new ElapsedTime();
+    MecanumDriveWheelSpeeds odometrySpeeds = new MecanumDriveWheelSpeeds();
 
-    // Used for managing the AprilTag detection process.
     private AprilTagProcessor myAprilTagProcessor;
     // Used to manage the video source.
     private VisionPortal myVisionPortal;
@@ -162,9 +163,9 @@ public class Gge_BasicOmniOpMode_Linear extends LinearOpMode {
         rightFrontDrive = hardwareMap.get(DcMotorEx.class, "right_front_drive");
         rightBackDrive = hardwareMap.get(DcMotorEx.class, "right_back_drive");
 
-        leftLinearSlide = hardwareMap.get(DcMotor.class, "left_linear_slide");
-        rightLinearSlide = hardwareMap.get(DcMotor.class, "right_linear_slide");
-        wrist = hardwareMap.get(DcMotor.class, "wrist");
+        leftLinearSlide = hardwareMap.get(DcMotorEx.class, "left_linear_slide");
+        rightLinearSlide = hardwareMap.get(DcMotorEx.class, "right_linear_slide");
+        wrist = hardwareMap.get(DcMotorEx.class, "wrist");
 
         leftClaw = hardwareMap.get(Servo.class, "left_claw");
         rightClaw = hardwareMap.get(Servo.class, "right_claw");
@@ -196,15 +197,15 @@ public class Gge_BasicOmniOpMode_Linear extends LinearOpMode {
         // ...F as holding / static force (set first)
         // For Mecanum drive, 8, 0, 0.5, 5 works well on Tiny
         // ... and 7, 0.2, 0.1, 8 works on Rosie (heavier bot)
-        ((DcMotorEx) leftFrontDrive).setVelocityPIDFCoefficients(12, 0.2, 0.1, 8);
-        ((DcMotorEx) leftBackDrive).setVelocityPIDFCoefficients(12, 0.2, 0.1, 8);
-        ((DcMotorEx) rightFrontDrive).setVelocityPIDFCoefficients(12, 0.2, 0.1, 8);
-        ((DcMotorEx) rightBackDrive).setVelocityPIDFCoefficients(12, 0.2, 0.1, 8);
+        leftFrontDrive.setVelocityPIDFCoefficients(12, 0.2, 0.1, 8);
+        leftBackDrive.setVelocityPIDFCoefficients(12, 0.2, 0.1, 8);
+        rightFrontDrive.setVelocityPIDFCoefficients(12, 0.2, 0.1, 8);
+        rightBackDrive.setVelocityPIDFCoefficients(12, 0.2, 0.1, 8);
         // For Lift, PIDF values set to reduce jitter on high lift
-        ((DcMotorEx) leftLinearSlide).setVelocityPIDFCoefficients(12, 0.75, 0, 8);
-        ((DcMotorEx) rightLinearSlide).setVelocityPIDFCoefficients(12, 0.75, 0, 8);
+        leftLinearSlide.setVelocityPIDFCoefficients(12, 0.75, 0, 8);
+        rightLinearSlide.setVelocityPIDFCoefficients(12, 0.75, 0, 8);
         // For Wrist, PIDF values set to reduce jitter
-        ((DcMotorEx) wrist).setVelocityPIDFCoefficients(15, 0.2, 0.05, 16);
+        wrist.setVelocityPIDFCoefficients(15, 0.2, 0.05, 16);
 
         // ########################################################################################
         // !!!            IMPORTANT Drive Information. Test your motor directions.            !!!!!
@@ -255,6 +256,8 @@ public class Gge_BasicOmniOpMode_Linear extends LinearOpMode {
         while (opModeIsActive()) {
 
             DirectionNow = imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.DEGREES);
+            // Update the odometry
+            odometry.updateWithTime(odometryTimer.seconds(), new Rotation2d(Math.toRadians(DirectionNow)), odometrySpeeds);
 
             if (gamepad1.back){
                 //Reset Yaw with the back button
@@ -413,6 +416,8 @@ public class Gge_BasicOmniOpMode_Linear extends LinearOpMode {
             // Show the elapsed game time and wheel power.
             telemetry.addData("Status", "Run Time: " + JavaUtil.formatNumber(runtime.milliseconds(), 2));
             telemetry.addData("Direction Now", JavaUtil.formatNumber(DirectionNow, 2));
+            telemetry.addData("Odometry Now X: ", odometry.getPoseMeters().getX());
+            telemetry.addData("Odometry Now Y: ", odometry.getPoseMeters().getY());
             telemetry.addData("Target Direction", JavaUtil.formatNumber(targetDirection, 2));
             telemetry.addData("Front left/Right", "%4.2f, %4.2f", leftFrontPower, rightFrontPower);
             telemetry.addData("Back  left/Right", "%4.2f, %4.2f", leftBackPower, rightBackPower);
