@@ -102,40 +102,10 @@ public class Movement {
         odometryTimer = odometryTimer1;
         odometrySpeeds = odometrySpeeds1;
         telemetry = telemetry1;
+        initOdometry();
     }
 
-    public void initIMU () {
-        // Initialize the IMU.
-        // For Tiny - Logo UP; USB BACKWARD
-        // For Rosie - Logo BACKWARD; USB UP
-        // For Gge - Logo UP; USB FORWARD;
-        // Initializes the IMU with non-default settings. To use this block,
-        // plug one of the "new IMU.Parameters" blocks into the parameters socket.
-        // Creates a Parameters object for use with an IMU in a REV Robotics Control Hub or Expansion Hub, specifying the hub's orientation on the robot via the direction that the REV Robotics logo is facing and the direction that the USB ports are facing.
-        imu.initialize(new IMU.Parameters(new RevHubOrientationOnRobot(RevHubOrientationOnRobot.LogoFacingDirection.UP, RevHubOrientationOnRobot.UsbFacingDirection.FORWARD)));
-        imu.resetYaw();
-    }
-
-    /**
-     * Resets all wheel motor encoder positions to 0
-     */
-    private void initMovement(){
-        motor_ticks = 0;
-
-        moveStartDirection = imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.DEGREES);
-
-        lfDrive.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER); // Reset the motor encoder
-        //lfDrive.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER); // Turn the motor back on when we are done
-
-        rfDrive.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER); // Reset the motor encoder
-        //rfDrive.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER); // Turn the motor back on when we are done
-
-        lbDrive.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER); // Reset the motor encoder
-        //lbDrive.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER); // Turn the motor back on when we are done
-
-        rbDrive.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER); // Reset the motor encoder
-        //rbDrive.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER); // Turn the motor back on when we are done
-
+    public void initOdometry () {
         // Setup the 2d translation for GGE as coordinates of each motor, relative to the center of GGE.
         // in Meters - translated from inches as inches * 2.54 / 100
         Translation2d lfMotorMeters = new Translation2d(-(6 * 2.54 / 100), (6 * 2.54 / 100));
@@ -151,6 +121,32 @@ public class Movement {
 
         odometryTimer = new ElapsedTime();
         odometryTimer.reset();
+
+    }
+    public MecanumDriveOdometry getOdometry(){
+        return odometry;
+    }
+
+    /**
+     * Resets all wheel motor encoder positions to 0
+     */
+    private void initMovement(){
+        motor_ticks = 0;
+
+        moveStartDirection = imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.DEGREES);
+
+        lfDrive.setMode(DcMotorEx.RunMode.STOP_AND_RESET_ENCODER); // Reset the motor encoder
+        //lfDrive.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER); // Turn the motor back on when we are done
+
+        rfDrive.setMode(DcMotorEx.RunMode.STOP_AND_RESET_ENCODER); // Reset the motor encoder
+        //rfDrive.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER); // Turn the motor back on when we are done
+
+        lbDrive.setMode(DcMotorEx.RunMode.STOP_AND_RESET_ENCODER); // Reset the motor encoder
+        //lbDrive.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER); // Turn the motor back on when we are done
+
+        rbDrive.setMode(DcMotorEx.RunMode.STOP_AND_RESET_ENCODER); // Reset the motor encoder
+        //rbDrive.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER); // Turn the motor back on when we are done
+
     }
 
     /**
@@ -160,10 +156,11 @@ public class Movement {
     public MecanumDriveWheelSpeeds GetWheelSpeeds (){
         MecanumDriveWheelSpeeds speeds = new MecanumDriveWheelSpeeds();
         // 1 entered as a placeholder for a future constant - fix as needed
-        speeds.frontLeftMetersPerSecond = 1 * lfDrive.getVelocity();
-        speeds.frontRightMetersPerSecond = 1 * rfDrive.getVelocity();
-        speeds.rearLeftMetersPerSecond = 1 * lbDrive.getVelocity();
-        speeds.rearRightMetersPerSecond = 1 * rbDrive.getVelocity();
+        // Scalar value obtained by measuring 100cm and dividing out observed values untuned
+        speeds.frontLeftMetersPerSecond = (100.0/1270.0) * lfDrive.getVelocity();
+        speeds.frontRightMetersPerSecond = (100.0/1270.0) * rfDrive.getVelocity();
+        speeds.rearLeftMetersPerSecond = (100.0/1270.0) * lbDrive.getVelocity();
+        speeds.rearRightMetersPerSecond = (100.0/1270.0) * rbDrive.getVelocity();
 
         return speeds;
     }

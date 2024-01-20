@@ -33,6 +33,7 @@ import static java.lang.Math.abs;
 
 import android.util.Size;
 
+import com.arcrobotics.ftclib.geometry.Pose2d;
 import com.arcrobotics.ftclib.geometry.Rotation2d;
 import com.arcrobotics.ftclib.kinematics.wpilibkinematics.MecanumDriveKinematics;
 import com.arcrobotics.ftclib.kinematics.wpilibkinematics.MecanumDriveOdometry;
@@ -116,7 +117,8 @@ public class Gge_Odometry_TeleOp extends LinearOpMode {
     MecanumDriveKinematics kinematics;
     MecanumDriveOdometry odometry;
     ElapsedTime odometryTimer = new ElapsedTime();
-    MecanumDriveWheelSpeeds odometrySpeeds = new MecanumDriveWheelSpeeds();
+    MecanumDriveWheelSpeeds odometrySpeeds;
+
 
     private AprilTagProcessor myAprilTagProcessor;
     // Used to manage the video source.
@@ -233,8 +235,14 @@ public class Gge_Odometry_TeleOp extends LinearOpMode {
         wrist.setDirection(DcMotorSimple.Direction.REVERSE);
 
         intake = new IntakeMovement(rightClaw, leftClaw, wrist, conveyor, telemetry);
-        moveTo = new Movement(leftFrontDrive, rightFrontDrive, leftBackDrive, rightBackDrive, imu, blinkinLED, myAprilTagProcessor, myVisionPortal, odometry, kinematics, odometryTimer, odometrySpeeds, telemetry);
+        moveTo = new Movement(leftFrontDrive, rightFrontDrive, leftBackDrive, rightBackDrive, imu,
+                blinkinLED, myAprilTagProcessor, myVisionPortal, odometry, kinematics,
+                odometryTimer, odometrySpeeds, telemetry);
         linearslidemovement = new LinearSlideMovement(leftLinearSlide, rightLinearSlide, intake);
+
+        //Iniitalize the odometry
+        odometry = moveTo.getOdometry();
+        odometrySpeeds = moveTo.GetWheelSpeeds();
 
         //drive speed limiter
         double powerFactor;
@@ -255,13 +263,18 @@ public class Gge_Odometry_TeleOp extends LinearOpMode {
         // run until the end of the match (driver presses STOP)
         while (opModeIsActive()) {
 
+
             DirectionNow = imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.DEGREES);
-            // Update the odometry
-            odometry.updateWithTime(odometryTimer.seconds(), new Rotation2d(Math.toRadians(DirectionNow)), odometrySpeeds);
+            // Get the wheel speeds and update the odometry
+            odometrySpeeds = moveTo.GetWheelSpeeds();
+            odometry.updateWithTime(odometryTimer.seconds(),
+                    new Rotation2d(Math.toRadians(DirectionNow)), odometrySpeeds);
 
             if (gamepad1.back){
                 //Reset Yaw with the back button
                 imu.resetYaw();
+                DirectionNow = imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.DEGREES);
+                odometry.resetPosition(new Pose2d(odometry.getPoseMeters().getX(), odometry.getPoseMeters().getY(), new Rotation2d(0.0)), new Rotation2d (Math.toRadians(DirectionNow)));
             }
 
             // Controls the intake
@@ -416,8 +429,10 @@ public class Gge_Odometry_TeleOp extends LinearOpMode {
             // Show the elapsed game time and wheel power.
             telemetry.addData("Status", "Run Time: " + JavaUtil.formatNumber(runtime.milliseconds(), 2));
             telemetry.addData("Direction Now", JavaUtil.formatNumber(DirectionNow, 2));
-            telemetry.addData("Odometry Now X: ", odometry.getPoseMeters().getX());
-            telemetry.addData("Odometry Now Y: ", odometry.getPoseMeters().getY());
+            telemetry.addData("lfDrive Velocity: ", leftFrontDrive.getVelocity());
+            telemetry.addData("Odometry X: ", odometry.getPoseMeters().getX());
+            telemetry.addData("Odometry Y: ", odometry.getPoseMeters().getY());
+            telemetry.addData("Odometry Angle: ", odometry.getPoseMeters().getRotation().getDegrees());
             telemetry.addData("Target Direction", JavaUtil.formatNumber(targetDirection, 2));
             telemetry.addData("Front left/Right", "%4.2f, %4.2f", leftFrontPower, rightFrontPower);
             telemetry.addData("Back  left/Right", "%4.2f, %4.2f", leftBackPower, rightBackPower);
