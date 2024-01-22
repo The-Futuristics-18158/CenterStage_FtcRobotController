@@ -244,6 +244,12 @@ public class Gge_Odometry_TeleOp extends LinearOpMode {
         odometry = moveTo.getOdometry();
         odometrySpeeds = moveTo.GetWheelSpeeds();
 
+        //target positions
+        double currentX = odometry.getPoseMeters().getX() + 0.1;
+        double currentY = odometry.getPoseMeters().getY() + 0;
+        double currentAngle = odometry.getPoseMeters().getRotation().getDegrees() + 0;
+
+
         //drive speed limiter
         double powerFactor;
         double basePowerFacter = 0.60;
@@ -301,10 +307,16 @@ public class Gge_Odometry_TeleOp extends LinearOpMode {
                     telemetry.update();
                 }
             } else if (gamepad1.y) {
-                while (!moveTo.GoToAprilTag(2) && gamepad1.y){
-                    telemetry.addData ("Targeting April Tag: ", 2);
+//                while (!moveTo.GoToAprilTag(2) && gamepad1.y){
+//                    telemetry.addData ("Targeting April Tag: ", 2);
+//                    telemetry.update();
+//                }
+
+                while (!moveTo.GoToPose2d(new Pose2d(currentX,currentY,new Rotation2d(Math.toRadians(currentAngle)))) && gamepad1.y){
+                    telemetry.addData ("go to pos: ", "running");
                     telemetry.update();
                 }
+
             } else if (gamepad1.b) {
                 while (!moveTo.GoToAprilTag(3) && gamepad1.b){
                     telemetry.addData ("Targeting April Tag: ", 3);
