@@ -33,6 +33,7 @@ import static java.lang.Math.abs;
 
 import android.util.Size;
 
+import com.arcrobotics.ftclib.controller.PIDController;
 import com.arcrobotics.ftclib.geometry.Pose2d;
 import com.arcrobotics.ftclib.geometry.Rotation2d;
 import com.arcrobotics.ftclib.kinematics.wpilibkinematics.MecanumDriveKinematics;
@@ -118,7 +119,6 @@ public class Gge_Odometry_TeleOp extends LinearOpMode {
     MecanumDriveOdometry odometry;
     ElapsedTime odometryTimer = new ElapsedTime();
     MecanumDriveWheelSpeeds odometrySpeeds;
-
 
     private AprilTagProcessor myAprilTagProcessor;
     // Used to manage the video source.
@@ -244,11 +244,10 @@ public class Gge_Odometry_TeleOp extends LinearOpMode {
         odometry = moveTo.getOdometry();
         odometrySpeeds = moveTo.GetWheelSpeeds();
 
-        //target positions
-        double currentX = odometry.getPoseMeters().getX() + 0.1;
-        double currentY = odometry.getPoseMeters().getY() + 0;
-        double currentAngle = odometry.getPoseMeters().getRotation().getDegrees() + 0;
-
+        // target positions
+        double targetX = odometry.getPoseMeters().getX();
+        double targetY = odometry.getPoseMeters().getY();
+        double targetAngle = odometry.getPoseMeters().getRotation().getDegrees() + 90;
 
         //drive speed limiter
         double powerFactor;
@@ -257,6 +256,9 @@ public class Gge_Odometry_TeleOp extends LinearOpMode {
 
         // Set a local variable to accumulate error over time (I gain).
         double accumulatedError = 0;
+        PIDController driveYawPID;
+        driveYawPID = new PIDController((1.0/100.0), 0.0004, 0.001);
+        driveYawPID.reset();
 
         // Wait for the game to start (driver presses PLAY)
         telemetry.addData("Status", "Initialized");
@@ -312,7 +314,12 @@ public class Gge_Odometry_TeleOp extends LinearOpMode {
 //                    telemetry.update();
 //                }
 
-                while (!moveTo.GoToPose2d(new Pose2d(currentX,currentY,new Rotation2d(Math.toRadians(currentAngle)))) && gamepad1.y){
+                while (!moveTo.GoToPose2d(new Pose2d(targetX,targetY,new Rotation2d(Math.toRadians(targetAngle)))) && gamepad1.y){
+                    // Get the wheel speeds and update the odometry
+                    DirectionNow = imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.DEGREES);
+                    odometrySpeeds = moveTo.GetWheelSpeeds();
+                    odometry.updateWithTime(odometryTimer.seconds(),
+                            new Rotation2d(Math.toRadians(DirectionNow)), odometrySpeeds);
                     telemetry.addData ("go to pos: ", "running");
                     telemetry.update();
                 }
@@ -379,7 +386,7 @@ public class Gge_Odometry_TeleOp extends LinearOpMode {
             }
 
             // Compensate the stick values to ensure that the IMU considers when the robot pulls to one side or another.
-            if (yaw == 0 && !gamepad1.back && abs(imu.getRobotYawPitchRollAngles().getPitch(AngleUnit.DEGREES)) < 10) {
+            if (yaw == 0 && !gamepad1.back) {
                 if (autoDriveTimeOk < runtime.milliseconds()){
                     // if the driver is not turning or resetting the Yaw, take the bearing desired
                     if (directionLocked == false){
@@ -387,9 +394,10 @@ public class Gge_Odometry_TeleOp extends LinearOpMode {
                         targetDirection = DirectionNow;
                     }
                     // Whenever there is error in the direction, accumulate this over time (i gain).
-                    accumulatedError += 0.0002 * moveTo.CalcTurnError (targetDirection, DirectionNow);
+                    //accumulatedError += 0.0002 * moveTo.CalcTurnError (targetDirection, DirectionNow);
                     // We already know that joystick yaw is 0, apply an automatic rotational angle to compensate for rotation.
-                    yaw = accumulatedError + 0.01 * moveTo.CalcTurnError (targetDirection, DirectionNow);
+                    //yaw = accumulatedError + 0.01 * moveTo.CalcTurnError (targetDirection, DirectionNow);
+                    yaw = -driveYawPID.calculate(moveTo.CalcTurnError (targetDirection, DirectionNow));
                 }
             } else {
                 // Reset the autoDriveDelay
@@ -398,6 +406,7 @@ public class Gge_Odometry_TeleOp extends LinearOpMode {
                 directionLocked = false;
                 // Reset the accumulated motion error.
                 accumulatedError = 0;
+                driveYawPID.reset();
             }
 
             // Reorient the stick inputs to field orientation

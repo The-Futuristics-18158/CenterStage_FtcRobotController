@@ -2,6 +2,7 @@ package org.firstinspires.ftc.teamcode.utility;
 
 import static java.lang.Math.abs;
 
+import com.arcrobotics.ftclib.controller.PIDController;
 import com.arcrobotics.ftclib.geometry.Pose2d;
 import com.arcrobotics.ftclib.geometry.Rotation2d;
 import com.arcrobotics.ftclib.geometry.Translation2d;
@@ -67,6 +68,10 @@ public class Movement {
     double tagBearing = 0;
     boolean tagDetected = false;
     boolean aprilTagAligned = false;
+    boolean pose2dAligned = false;
+
+    // Setup PID controllers for Pose2d motion.
+    PIDController yawPID;
     double axial = 0;
     double lateral = 0;
     double yaw = 0;
@@ -102,6 +107,8 @@ public class Movement {
         odometrySpeeds = odometrySpeeds1;
         telemetry = telemetry1;
         initOdometry();
+        yawPID = new PIDController((1.0/45.0), 0.00, 0.002);
+        yawPID.reset();
     }
 
     public void initOdometry() {
@@ -146,6 +153,7 @@ public class Movement {
 
         rbDrive.setMode(DcMotorEx.RunMode.STOP_AND_RESET_ENCODER); // Reset the motor encoder
         //rbDrive.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER); // Turn the motor back on when we are done
+
 
     }
 
@@ -502,49 +510,47 @@ public class Movement {
         double targetY = targetPosition.getY(); // desired Y
         double targetAngle = targetPosition.getRotation().getDegrees(); // desired Angle
 
-        currentX = odometry.getPoseMeters().getX();
-        currentY = odometry.getPoseMeters().getY();
+//        currentX = odometry.getPoseMeters().getX();
+//        currentY = odometry.getPoseMeters().getY();
+        targetX = 0;
+        targetY = 0;
+        currentX = 0;
+        currentY = 0;
         currentAngle = odometry.getPoseMeters().getRotation().getDegrees();
 
-        axial = targetX - currentX;
+        pose2dAligned = false;
 
+        axial = targetX - currentX;
         lateral = targetY - currentY;
 
-        if (axial < 0.2){
-            axial = 0.2;
-        }
-        //yaw = targetAngle - currentAngle;
+        // Use a PID controller to dampen the yaw motion on a turn.
+        yaw = yawPID.calculate (CalcTurnError(targetAngle, currentAngle));
 
-        if (abs(targetAngle - currentAngle) > 2) {
-            yaw = -CalcTurnError(targetAngle, currentAngle) / 45;
-            if (yaw > 0.2) {
-                yaw = 0.2;
-            } else if (yaw < -0.2) {
-                yaw = -0.2;
-            }
-        } else {
-            yaw = 0;
-        }
-
-        aprilTagAligned = false;
-
-//        // Combine the axial, lateral and yaw factors to be powers
-//        double leftFrontPower = axial + lateral + yaw;
-//        double rightFrontPower = axial - lateral - yaw;
-//        double leftBackPower = axial - lateral + yaw;
-//        double rightBackPower = axial + lateral - yaw;
+//      // Combine the axial, lateral and yaw factors to be powers
+        double leftFrontPower = axial + lateral + yaw;
+        double rightFrontPower = axial - lateral - yaw;
+        double leftBackPower = axial - lateral + yaw;
+        double rightBackPower = axial + lateral - yaw;
 
         // Reorient the stick inputs to field orientation
         // The current orientation is DirectionNow
-        double field_axial = axial * Math.cos(Math.toRadians(currentAngle)) - lateral * Math.sin(Math.toRadians(currentAngle));
-        double field_lateral = axial * Math.sin(Math.toRadians(currentAngle)) + lateral * Math.cos(Math.toRadians(currentAngle));
+//        double field_axial = axial * Math.cos(Math.toRadians(currentAngle)) - lateral * Math.sin(Math.toRadians(currentAngle));
+//        double field_lateral = axial * Math.sin(Math.toRadians(currentAngle)) + lateral * Math.cos(Math.toRadians(currentAngle));
 
         // Combine the joystick requests for each axis-motion to determine each wheel's power.
         // Set up a variable for each drive wheel to save the power level for telemetry.
-        double leftFrontPower  = field_axial + field_lateral - yaw;
-        double rightFrontPower = field_axial - field_lateral + yaw;
-        double leftBackPower   = field_axial - field_lateral - yaw;
-        double rightBackPower  = field_axial + field_lateral + yaw;
+//        double leftFrontPower  = field_axial + field_lateral - yaw;
+//        double rightFrontPower = field_axial - field_lateral + yaw;
+//        double leftBackPower   = field_axial - field_lateral - yaw;
+//        double rightBackPower  = field_axial + field_lateral + yaw;
+
+        // Update Telemetry with key data
+        telemetry.addLine(String.format("Pose2D X(Current%5.1f,Target%5.1f)", currentX, targetX));
+        telemetry.addLine(String.format("Pose2D Y(Current%5.1f,Target%5.1f)", currentY, targetY));
+        telemetry.addLine(String.format("Pose2D Φ(Current%5.1f,Target%5.1f)", currentAngle, targetAngle));
+        telemetry.addLine(String.format("Motion (Axial%5.1f,Lateral%5.1f,Yaw%5.1f)", axial, lateral, yaw));
+        telemetry.addLine(String.format("Motor Powers(lf:%4.1f,rf:%4.1f,lb%4.1f,rb%4.1f)", leftFrontPower, rightFrontPower, leftBackPower, rightBackPower));
+        telemetry.update();
 
         // Apply calculated values to drive motors
         lfDrive.setPower(leftFrontPower);
@@ -553,10 +559,9 @@ public class Movement {
         rbDrive.setPower(rightBackPower);
 
         // Test to see if we are at all three parts of our desired position and we are aligned.
-        if (abs(targetX - currentX) < 1 && currentY < targetY && abs(targetAngle - currentAngle) < 2) {
-            aprilTagAligned = true;
-            blinkinLED.setPattern(RevBlinkinLedDriver.BlinkinPattern.COLOR_WAVES_OCEAN_PALETTE);
+        if (abs(targetX - currentX) < 1 && currentY < targetY && abs(targetAngle - currentAngle) < 1) {
+            pose2dAligned = true;
         }
-        return aprilTagAligned;
+        return pose2dAligned;
     }
 }
