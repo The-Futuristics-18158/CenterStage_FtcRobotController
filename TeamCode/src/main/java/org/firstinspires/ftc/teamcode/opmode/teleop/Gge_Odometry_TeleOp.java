@@ -110,6 +110,7 @@ public class Gge_Odometry_TeleOp extends LinearOpMode {
     Servo leftClaw;
     Servo rightClaw;
     Servo conveyor;
+    Servo drone;
 
     private IMU imu;
     // Used for managing the AprilTag detection process.
@@ -156,6 +157,8 @@ public class Gge_Odometry_TeleOp extends LinearOpMode {
 
         conveyor = hardwareMap.get(Servo.class, "conveyor");
 
+        drone = hardwareMap.get(Servo.class, "drone_launcher");
+
         blinkinLED = hardwareMap.get(RevBlinkinLedDriver.class, "blinkin");
 
         imu = hardwareMap.get(IMU.class, "imu");
@@ -171,6 +174,9 @@ public class Gge_Odometry_TeleOp extends LinearOpMode {
         // set a timer to prevent restarting auto drive correction within several milliseconds of the previous initialization
         double autoDriveDelay = 200;
         double autoDriveTimeOk;
+
+        //drone release servo starting position
+        double droneRelease = 0.0;
 
         // Adding in PIDF Config values learned from previous testing
         // These may need to be tuned anytime the motor weights or config changes.
@@ -262,6 +268,7 @@ public class Gge_Odometry_TeleOp extends LinearOpMode {
         // run until the end of the match (driver presses STOP)
         while (opModeIsActive()) {
 
+            drone.setPosition(droneRelease);
 
             DirectionNow = imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.DEGREES);
             // Get the wheel speeds and update the odometry
@@ -320,6 +327,10 @@ public class Gge_Odometry_TeleOp extends LinearOpMode {
                     telemetry.addData ("Targeting April Tag: ", 3);
                     telemetry.update();
                 }
+            }
+
+            if(gamepad1.right_bumper) {
+                droneRelease = 0;
             }
 
             if(gamepad1.dpad_down){
