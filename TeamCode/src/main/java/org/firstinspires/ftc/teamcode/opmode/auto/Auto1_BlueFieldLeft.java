@@ -175,17 +175,17 @@ public class Auto1_BlueFieldLeft extends AutoBase {
             // Use the GoToAprilTag to get to within 7 inches of the Backdrop
             if (gamepieceLocation == GamePieceLocation.LEFT && state == 1) {
                 // Align and drive to April Tag.  1 is BLUE side LEFT.
-                if (moveTo.GoToAprilTag(AprilTagLocation.BLUE_LEFT) == true) {
+                if (moveTo.GoToAprilTag(AprilTagLocation.BLUE_LEFT)) {
                     state = 2;
                 }
             } else if (gamepieceLocation == GamePieceLocation.CENTER && state == 1) {
                 // Align and drive to April Tag.  2 is BLUE side CENTER.
-                if (moveTo.GoToAprilTag(AprilTagLocation.BLUE_CENTRE) == true) {
+                if (moveTo.GoToAprilTag(AprilTagLocation.BLUE_CENTRE)) {
                     state = 2;
                 }
             } else if (gamepieceLocation == GamePieceLocation.RIGHT && state == 1) {
                 // Align and drive to April Tag.  3 is BLUE side RIGHT.
-                if (moveTo.GoToAprilTag(AprilTagLocation.BLUE_CENTRE) == true) {
+                if (moveTo.GoToAprilTag(AprilTagLocation.BLUE_RIGHT)) {
                     state = 2;
                 }
             }
@@ -204,10 +204,6 @@ public class Auto1_BlueFieldLeft extends AutoBase {
                 moveTo.Forward((int) ((4 * ticksPerInch) * 0.94), 0.25);
                 // Moves the linear slide to the bottom position
                 linearSlideMove.LinearSlidesBottom();
-                // Pause to ensure the lift rest on the bottom
-                sleep(500);
-                // Finish all autos with the wrist up
-                intake.FlipUp();
                 // Moves right 18 inches
                 moveTo.Right((int) ((18 * ticksPerInch) * 1.04), 0.4);
                 // Backward 6 inches
@@ -229,10 +225,6 @@ public class Auto1_BlueFieldLeft extends AutoBase {
                 moveTo.Forward((int) ((4 * ticksPerInch) * 0.94), 0.25);
                 // Moves the linear slide to the bottom position
                 linearSlideMove.LinearSlidesBottom();
-                // Pause to ensure the lift rest on the bottom
-                sleep(500);
-                // Finish all autos with the wrist up
-                intake.FlipUp();
                 // Moves right 26 inches
                 moveTo.Right((int) ((24 * ticksPerInch) * 1.04), 0.4);
                 // Backward 6 inches
@@ -251,12 +243,8 @@ public class Auto1_BlueFieldLeft extends AutoBase {
                 moveTo.Forward((int) ((4 * ticksPerInch) * 0.94), 0.25);
                 // Moves the linear slide to the bottom position
                 linearSlideMove.LinearSlidesBottom();
-                // Pause to ensure the lift rest on the bottom
-                sleep(500);
-                // Finish all autos with the wrist up
-                intake.FlipUp();
                 // Moves right 32 inches
-                moveTo.Right((int) ((19 * ticksPerInch) * 1.04), 0.4);
+                moveTo.Right((int) ((30 * ticksPerInch) * 1.04), 0.4);
                 // Backward 10 inches
                 moveTo.Backwards((int) ((10 * ticksPerInch) * 0.94), 0.25);
                 state = 3;

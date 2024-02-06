@@ -524,9 +524,9 @@ public class Movement {
         // To make the robot go left, increase the lateral (-left_stick_x in robot mode)
         lateral = (aprilTagTargetX - aprilTagCurrentX) / 20;
         if (aprilTagTargetX - aprilTagCurrentX > 1) {
-            lateral = 0.30;
+            lateral = 0.2;
         } else if (aprilTagTargetX - aprilTagCurrentX < -1) {
-            lateral = -0.30;
+            lateral = -0.2;
         } else {
             lateral = 0;
         }
