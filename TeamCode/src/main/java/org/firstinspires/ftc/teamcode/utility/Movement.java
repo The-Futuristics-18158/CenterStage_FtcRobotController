@@ -569,21 +569,17 @@ public class Movement {
 
         // Scan for April Tag detections and update current values if you find one.
         List<AprilTagDetection> tag = visionProcessor.getDetections();
-        if (tag != null) {
-            for (int i = 0; i < tag.size(); i++) {
-                if (tag.get(i) != null) {
-                    if (tag.get(i).id == tagNumber.TagNum()) {
-                        aprilTagCurrentX = tag.get(i).ftcPose.x;
-                        aprilTagCurrentY = tag.get(i).ftcPose.y;
-                        tagRange = tag.get(i).ftcPose.range;
-                        tagBearing = tag.get(i).ftcPose.bearing;
-                        tagYaw = tag.get(i).ftcPose.yaw;
-                        tagFieldX = tag.get(i).metadata.fieldPosition.get(0);
-                        tagFieldY = tag.get(i).metadata.fieldPosition.get(1);
-                        blinkinLED.setPattern(RevBlinkinLedDriver.BlinkinPattern.HEARTBEAT_GRAY);
-                        tagDetected = true;
-                    }
-                }
+        for(AprilTagDetection detection: tag) {
+            if (detection.id == tagNumber.TagNum()) {
+                aprilTagCurrentX = detection.ftcPose.x;
+                aprilTagCurrentY = detection.ftcPose.y;
+                tagRange = detection.ftcPose.range;
+                tagBearing = detection.ftcPose.bearing;
+                tagYaw = detection.ftcPose.yaw;
+                tagFieldX = detection.metadata.fieldPosition.get(0);
+                tagFieldY = detection.metadata.fieldPosition.get(1);
+                blinkinLED.setPattern(RevBlinkinLedDriver.BlinkinPattern.HEARTBEAT_GRAY);
+                tagDetected = true;
             }
         }
 
