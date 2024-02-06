@@ -423,6 +423,48 @@ public class Movement {
         rbDrive.setPower(rbPower);
     }
 
+    public Translation2d RobotPosFromAprilTag(AprilTagLocation tagNumber) {
+        double tagFieldX = 0.0;
+        double tagFieldY = 0.0;
+        double tagRange = 0.0;
+        double tagBearing = 0.0;
+        double tagYaw = 0.0;
+
+        // Scan for April Tag detections and update current values if you find one.
+        List<AprilTagDetection> tag = visionProcessor.getDetections();
+        if (tag != null) {
+            for (int i = 0; i < tag.size(); i++) {
+                if (tag.get(i) != null) {
+                    if (tag.get(i).id == tagNumber.TagNum()) {
+                        aprilTagCurrentX = tag.get(i).ftcPose.x;
+                        aprilTagCurrentY = tag.get(i).ftcPose.y;
+                        tagRange = tag.get(i).ftcPose.range;
+                        tagBearing = tag.get(i).ftcPose.bearing;
+                        tagYaw = tag.get(i).ftcPose.yaw;
+                        tagFieldX = tag.get(i).metadata.fieldPosition.get(0);
+                        tagFieldY = tag.get(i).metadata.fieldPosition.get(1);
+                        blinkinLED.setPattern(RevBlinkinLedDriver.BlinkinPattern.HEARTBEAT_WHITE);
+                        tagDetected = true;
+                    }
+                }
+            }
+        }
+
+        // Calculate the field X Offset given that the angle
+        double fieldXOffset = -(Math.sin (Math.toRadians (tagBearing - tagYaw)) * tagRange);
+        double fieldYOffset = Math.cos (Math.toRadians (tagBearing - tagYaw)) * tagRange;
+
+        //calculate the robots field position and convert to meters
+        double robotFieldXinches = (72-tagFieldY-fieldXOffset);
+        double robotFieldYinches = (72+tagFieldX-fieldYOffset);
+        double robotFieldXmeters = ((robotFieldXinches*2.54)/100);
+        double robotFieldYmeters = ((robotFieldYinches*2.54)/100);
+
+        Translation2d robotFieldPOSMeters = new Translation2d(robotFieldXmeters, robotFieldYmeters);
+
+        return robotFieldPOSMeters;
+    }
+
     public boolean GoToAprilTag(AprilTagLocation tagNumber) {
         double aprilTagTargetX = 0;
         // The AprilTag is not centered on the LEFT and RIGHT backdrop zones, adjust X targets
@@ -451,19 +493,30 @@ public class Movement {
         double tagFieldY = 0.0;
 
         // Scan for April Tag detections and update current values if you find one.
-        List<AprilTagDetection> tag = visionProcessor.getDetections();
-        if (tag != null) {
-            for (int i = 0; i < tag.size(); i++) {
-                if (tag.get(i) != null) {
-                    if (tag.get(i).id == tagNumber.TagNum()) {
-                        tagID = tag.get(i).id;
-                        aprilTagCurrentX = tag.get(i).ftcPose.x;
-                        aprilTagCurrentY = tag.get(i).ftcPose.y;
-                        tagFieldX = tag.get(i).metadata.fieldPosition.get(0);
-                        tagFieldY = tag.get(i).metadata.fieldPosition.get(1);
+        if(visionProcessor.getDetections() != null){
+            for (AprilTagLocation item: AprilTagLocation.values()){
+                List<AprilTagDetection> detection = visionProcessor.getDetections();
+                if (detection != null){
+                    for (AprilTagDetection detectedTag: detection){
+                        if (detectedTag.id == item.TagNum()) {
+                            tagID = detectedTag.id;
+                            aprilTagCurrentX = detectedTag.ftcPose.x;
+                            aprilTagCurrentY = detectedTag.ftcPose.y;
 
-                        blinkinLED.setPattern(RevBlinkinLedDriver.BlinkinPattern.GREEN);
-                        tagDetected = true;
+                            blinkinLED.setPattern(RevBlinkinLedDriver.BlinkinPattern.GREEN);
+                            tagDetected = true;
+
+                            Translation2d robotFieldPOSMeters = RobotPosFromAprilTag(item);
+                            // Smooth any erratic and rare incorrect field position returns from RobotPosAprilTag.
+                            double weightedX = (0.1 * robotFieldPOSMeters.getX()) + (0.9 * odometry.getPoseMeters().getX());
+                            double weightedY = (0.1 * robotFieldPOSMeters.getY()) + (0.9 * odometry.getPoseMeters().getY());
+                            // Consider a low pass filter here... given that new April Tag data is
+                            // coming at high frequency, each tag's new position could be partially
+                            // taken as truth vs. existing field position.
+                            odometry.resetPosition(new Pose2d(weightedX, weightedY,
+                                            new Rotation2d(Math.toRadians(imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.RADIANS)))),
+                                    new Rotation2d(Math.toRadians(imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.RADIANS))));
+                        }
                     }
                 }
             }
@@ -509,10 +562,10 @@ public class Movement {
         // If the yaw is +, apply -yaw, if the yaw if -, apply +yaw (-right_stick_x in robot mode)
         if (abs(aprilTagTargetAngle - aprilTagCurrentAngle) > 2) {
             yaw = -CalcTurnError(aprilTagTargetAngle, aprilTagCurrentAngle) / 45;
-            if (yaw > 0.25) {
-                yaw = 0.25;
-            } else if (yaw < -0.25) {
-                yaw = -0.25;
+            if (yaw > 0.15) {
+                yaw = 0.15;
+            } else if (yaw < -0.15) {
+                yaw = -0.15;
             }
         } else {
             yaw = 0;
@@ -558,48 +611,6 @@ public class Movement {
             blinkinLED.setPattern(RevBlinkinLedDriver.BlinkinPattern.COLOR_WAVES_OCEAN_PALETTE);
         }
         return aprilTagAligned;
-    }
-
-    public Translation2d RobotPosFromAprilTag(AprilTagLocation tagNumber) {
-        double tagFieldX = 0.0;
-        double tagFieldY = 0.0;
-        double tagRange = 0.0;
-        double tagBearing = 0.0;
-        double tagYaw = 0.0;
-
-        // Scan for April Tag detections and update current values if you find one.
-        List<AprilTagDetection> tag = visionProcessor.getDetections();
-        if (tag != null) {
-            for (int i = 0; i < tag.size(); i++) {
-                if (tag.get(i) != null) {
-                    if (tag.get(i).id == tagNumber.TagNum()) {
-                        aprilTagCurrentX = tag.get(i).ftcPose.x;
-                        aprilTagCurrentY = tag.get(i).ftcPose.y;
-                        tagRange = tag.get(i).ftcPose.range;
-                        tagBearing = tag.get(i).ftcPose.bearing;
-                        tagYaw = tag.get(i).ftcPose.yaw;
-                        tagFieldX = tag.get(i).metadata.fieldPosition.get(0);
-                        tagFieldY = tag.get(i).metadata.fieldPosition.get(1);
-                        blinkinLED.setPattern(RevBlinkinLedDriver.BlinkinPattern.HEARTBEAT_GRAY);
-                        tagDetected = true;
-                    }
-                }
-            }
-        }
-
-        // Calculate the field X Offset given that the angle
-        double fieldXOffset = -(Math.sin (Math.toRadians (tagBearing - tagYaw)) * tagRange);
-        double fieldYOffset = Math.cos (Math.toRadians (tagBearing - tagYaw)) * tagRange;
-
-        //calculate the robots field position and convert to meters
-        double robotFieldXinches = (72-tagFieldY-fieldXOffset);
-        double robotFieldYinches = (72+tagFieldX-fieldYOffset);
-        double robotFieldXmeters = ((robotFieldXinches*2.54)/100);
-        double robotFieldYmeters = ((robotFieldYinches*2.54)/100);
-
-        Translation2d robotFieldPOSMeters = new Translation2d(robotFieldXmeters, robotFieldYmeters);
-
-        return robotFieldPOSMeters;
     }
 
     public boolean GoToPose2d(Pose2d targetPosition) {
