@@ -309,21 +309,19 @@ public class Gge_Odometry_TeleOp extends LinearOpMode {
         while (opModeIsActive()) {
 
             if(visionSystem.getDetections() != null){
+                List<AprilTagDetection>  tagDetections = visionSystem.getDetections();
                 for (AprilTagLocation item: AprilTagLocation.values()){
-                    List<AprilTagDetection> detection = visionSystem.getDetections();
-                    if (detection != null){
-                        for (AprilTagDetection detectedTag: detection){
-                            if (detectedTag.id == item.TagNum()) {
-                                Translation2d robotFieldPOSMeters = moveTo.RobotPosFromAprilTag(item);
-                                // Smooth any erratic and rare incorrect field position returns from RobotPosAprilTag.
-                                double weightedX = (0.1 * robotFieldPOSMeters.getX()) + (0.9 * odometry.getPoseMeters().getX());
-                                double weightedY = (0.1 * robotFieldPOSMeters.getY()) + (0.9 * odometry.getPoseMeters().getY());
-                                // Consider a low pass filter here... given that new April Tag data is
-                                // coming at high frequency, each tag's new position could be partially
-                                // taken as truth vs. existing field position.
-                                odometry.resetPosition(new Pose2d(weightedX, weightedY,
-                                        new Rotation2d(Math.toRadians(DirectionNow))), new Rotation2d(Math.toRadians(DirectionNow)));
-                            }
+                    for (AprilTagDetection detectedTag: tagDetections){
+                        if (detectedTag.id == item.TagNum()) {
+                            Translation2d robotFieldPOSMeters = moveTo.RobotPosFromAprilTag(item);
+                            // Smooth any erratic and rare incorrect field position returns from RobotPosAprilTag.
+                            double weightedX = (0.1 * robotFieldPOSMeters.getX()) + (0.9 * odometry.getPoseMeters().getX());
+                            double weightedY = (0.1 * robotFieldPOSMeters.getY()) + (0.9 * odometry.getPoseMeters().getY());
+                            // Consider a low pass filter here... given that new April Tag data is
+                            // coming at high frequency, each tag's new position could be partially
+                            // taken as truth vs. existing field position.
+                            odometry.resetPosition(new Pose2d(weightedX, weightedY,
+                                    new Rotation2d(Math.toRadians(DirectionNow))), new Rotation2d(Math.toRadians(DirectionNow)));
                         }
                     }
                 }
