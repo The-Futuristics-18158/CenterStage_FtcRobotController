@@ -186,6 +186,7 @@ public class Gge_Odometry_TeleOp extends LinearOpMode {
 
         // Set DirectionNow to be the current angle of the robot continuously updated.
         double DirectionNow = imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.DEGREES);
+        double RobotHeading = DirectionNow;
 
         // set TargetDirection to hold the desired direction of the robot while driving.
         // this is initially 0.0
@@ -273,17 +274,21 @@ public class Gge_Odometry_TeleOp extends LinearOpMode {
                 leftTagID = AprilTagLocation.BLUE_LEFT;
                 centerTagID = AprilTagLocation.BLUE_CENTRE;
                 rightTagID = AprilTagLocation.BLUE_RIGHT;
+                RobotHeading = DirectionNow;
+                break;
             case RED:
                 // target positions -- when on the BLUE alliance these will be set to the approach for tags 1 - 3.
                 // backdrop when the robot starts in the blue left position
-                leftTagApproachX = 0.7; // 1m from the blue field side
-                centerTagApproachX = 0.9; // 1m from the blue field side
-                rightTagApproachX = 1.1; // 1m from the blue field side
+                leftTagApproachX = 2.57; // 1m from the blue field side
+                centerTagApproachX = 2.75; // 1m from the blue field side
+                rightTagApproachX = 2.87; // 1m from the blue field side
                 allTagsApproachY = 2.75; // field Y is always the same for ideal approach
-                allTagsApproachAngle = 90; // initialized as 0.0 degrees from blue field start
+                allTagsApproachAngle = -90; // initialized as 0.0 degrees from blue field start
                 leftTagID = AprilTagLocation.RED_LEFT;
                 centerTagID = AprilTagLocation.RED_CENTRE;
                 rightTagID = AprilTagLocation.RED_RIGHT;
+                RobotHeading = DirectionNow - 180;
+                break;
         }
 
         //drive speed limiter
@@ -312,7 +317,7 @@ public class Gge_Odometry_TeleOp extends LinearOpMode {
                 for (AprilTagLocation item: AprilTagLocation.values()){
                     for (AprilTagDetection detectedTag: tagDetections){
                         if (detectedTag.id == item.TagNum()) {
-                            Translation2d robotFieldPOSMeters = moveTo.RobotPosFromAprilTag(item);
+                            Translation2d robotFieldPOSMeters = moveTo.RobotPosFromAprilTag(detectedTag);
                             // Smooth any erratic and rare incorrect field position returns from RobotPosAprilTag.
                             double weightedX = (0.1 * robotFieldPOSMeters.getX()) + (0.9 * odometry.getPoseMeters().getX());
                             double weightedY = (0.1 * robotFieldPOSMeters.getY()) + (0.9 * odometry.getPoseMeters().getY());
@@ -320,7 +325,7 @@ public class Gge_Odometry_TeleOp extends LinearOpMode {
                             // coming at high frequency, each tag's new position could be partially
                             // taken as truth vs. existing field position.
                             odometry.resetPosition(new Pose2d(weightedX, weightedY,
-                                    new Rotation2d(Math.toRadians(DirectionNow))), new Rotation2d(Math.toRadians(DirectionNow)));
+                                    new Rotation2d(Math.toRadians(RobotHeading))), new Rotation2d(Math.toRadians(DirectionNow)));
                         }
                     }
                 }
@@ -328,6 +333,9 @@ public class Gge_Odometry_TeleOp extends LinearOpMode {
 
 
             DirectionNow = imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.DEGREES);
+            // If we're on the RED Alliance, Robot heading needs to be reversed from the IMU to maintain field coords.
+            RobotHeading = (allianceNow == AllianceColour.BLUE) ? DirectionNow : DirectionNow - 180;
+
             // Get the wheel speeds and update the odometry
             odometrySpeeds = moveTo.GetWheelSpeeds();
             odometry.updateWithTime(odometryTimer.seconds(),
@@ -517,7 +525,8 @@ public class Gge_Odometry_TeleOp extends LinearOpMode {
             telemetry.addData("Status", "Run Time: " + JavaUtil.formatNumber(runtime.milliseconds(), 2));
             telemetry.addData("Alliance Now", allianceNow);
             telemetry.addData("Direction Now", JavaUtil.formatNumber(DirectionNow, 2));
-            telemetry.addData("Pose2D Current (X,Y): ","(%5.2f,%5.2f)", odometry.getPoseMeters().getX(), odometry.getPoseMeters().getY());
+            telemetry.addData("Pose2D Current (X,Y,Angle): ","(%5.2f,%5.2f,%5.2f)",
+                    odometry.getPoseMeters().getX(), odometry.getPoseMeters().getY(), odometry.getPoseMeters().getRotation().getDegrees());
             telemetry.addData("Wrist Position: ", wrist.getCurrentPosition());
             telemetry.addData("Drive Power multiplier", powerFactor);
             telemetry.addData("Yaw Correction", JavaUtil.formatNumber(yaw, 2));

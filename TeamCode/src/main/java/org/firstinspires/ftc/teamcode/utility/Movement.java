@@ -57,8 +57,6 @@ public class Movement {
 
     double moveStartDirection = 0.0;
     int alignStage = 0;
-
-    boolean tagDetected = false;
     double aprilTagCurrentX = -2;
     double aprilTagCurrentY = 15;
     boolean aprilTagAligned = false;
@@ -423,7 +421,7 @@ public class Movement {
         rbDrive.setPower(rbPower);
     }
 
-    public Translation2d RobotPosFromAprilTag(AprilTagLocation tagNumber) {
+    public Translation2d RobotPosFromAprilTag(AprilTagDetection tagDetection) {
         double tagFieldX = 0.0;
         double tagFieldY = 0.0;
         double tagRange = 0.0;
@@ -431,24 +429,14 @@ public class Movement {
         double tagYaw = 0.0;
 
         // Scan for April Tag detections and update current values if you find one.
-        List<AprilTagDetection> tag = visionProcessor.getDetections();
-        if (tag != null) {
-            for (int i = 0; i < tag.size(); i++) {
-                if (tag.get(i) != null) {
-                    if (tag.get(i).id == tagNumber.TagNum()) {
-                        aprilTagCurrentX = tag.get(i).ftcPose.x;
-                        aprilTagCurrentY = tag.get(i).ftcPose.y;
-                        tagRange = tag.get(i).ftcPose.range;
-                        tagBearing = tag.get(i).ftcPose.bearing;
-                        tagYaw = tag.get(i).ftcPose.yaw;
-                        tagFieldX = tag.get(i).metadata.fieldPosition.get(0);
-                        tagFieldY = tag.get(i).metadata.fieldPosition.get(1);
-                        blinkinLED.setPattern(RevBlinkinLedDriver.BlinkinPattern.HEARTBEAT_WHITE);
-                        tagDetected = true;
-                    }
-                }
-            }
-        }
+        aprilTagCurrentX = tagDetection.ftcPose.x;
+        aprilTagCurrentY = tagDetection.ftcPose.y;
+        tagRange = tagDetection.ftcPose.range;
+        tagBearing = tagDetection.ftcPose.bearing;
+        tagYaw = tagDetection.ftcPose.yaw;
+        tagFieldX = tagDetection.metadata.fieldPosition.get(0);
+        tagFieldY = tagDetection.metadata.fieldPosition.get(1);
+        blinkinLED.setPattern(RevBlinkinLedDriver.BlinkinPattern.HEARTBEAT_WHITE);
 
         // Calculate the field X Offset given that the angle
         double fieldXOffset = -(Math.sin (Math.toRadians (tagBearing - tagYaw)) * tagRange);
@@ -467,13 +455,14 @@ public class Movement {
 
     public boolean GoToAprilTag(AprilTagLocation tagNumber) {
         double aprilTagTargetX = 0;
+        AllianceColour allianceNow = AllianceColour.BLUE;
         // The AprilTag is not centered on the LEFT and RIGHT backdrop zones, adjust X targets
         if (tagNumber == AprilTagLocation.BLUE_LEFT || tagNumber == AprilTagLocation.RED_LEFT) {
             aprilTagTargetX = 0.25;
         } else if (tagNumber == AprilTagLocation.BLUE_RIGHT || tagNumber == AprilTagLocation.RED_RIGHT) {
             aprilTagTargetX = -0.25;
         }
-        double aprilTagTargetY = 9.6;
+        double aprilTagTargetY = 10;
         double aprilTagTargetAngle = 0;
 
         // Translate the tagNumber requested to know the angle of the backdrop in robot IMU
@@ -485,9 +474,13 @@ public class Movement {
                 tagNumber == AprilTagLocation.RED_CENTRE ||
                 tagNumber == AprilTagLocation.RED_RIGHT) {
             aprilTagTargetAngle = 90;
+            allianceNow = AllianceColour.RED;
         }
 
         double aprilTagCurrentAngle = imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.DEGREES);
+        // If we're on the RED Alliance, Robot heading needs to be reversed from the IMU to maintain field coords.
+        double RobotHeading = (allianceNow == AllianceColour.BLUE) ? aprilTagCurrentAngle : aprilTagCurrentAngle - 180;
+
         double tagID = 0.0;
         double tagFieldX = 0.0;
         double tagFieldY = 0.0;
@@ -504,9 +497,8 @@ public class Movement {
                             aprilTagCurrentY = detectedTag.ftcPose.y;
 
                             blinkinLED.setPattern(RevBlinkinLedDriver.BlinkinPattern.GREEN);
-                            tagDetected = true;
 
-                            Translation2d robotFieldPOSMeters = RobotPosFromAprilTag(item);
+                            Translation2d robotFieldPOSMeters = RobotPosFromAprilTag(detectedTag);
                             // Smooth any erratic and rare incorrect field position returns from RobotPosAprilTag.
                             double weightedX = (0.1 * robotFieldPOSMeters.getX()) + (0.9 * odometry.getPoseMeters().getX());
                             double weightedY = (0.1 * robotFieldPOSMeters.getY()) + (0.9 * odometry.getPoseMeters().getY());
@@ -514,8 +506,8 @@ public class Movement {
                             // coming at high frequency, each tag's new position could be partially
                             // taken as truth vs. existing field position.
                             odometry.resetPosition(new Pose2d(weightedX, weightedY,
-                                            new Rotation2d(Math.toRadians(imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.RADIANS)))),
-                                    new Rotation2d(Math.toRadians(imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.RADIANS))));
+                                            new Rotation2d(Math.toRadians(RobotHeading))),
+                                    new Rotation2d(Math.toRadians(aprilTagCurrentAngle)));
                         }
                     }
                 }
