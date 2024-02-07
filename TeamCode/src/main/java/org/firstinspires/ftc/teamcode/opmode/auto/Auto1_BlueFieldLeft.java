@@ -77,6 +77,7 @@ public class Auto1_BlueFieldLeft extends AutoBase {
                                                         AprilTagLocation.BLUE_CENTRE,
                                                         AprilTagLocation.BLUE_RIGHT));
         lastFieldPos = new Pose2d(0.25,2.2, new Rotation2d(Math.toRadians(0.0)));
+
         odometry.resetPosition(lastFieldPos,lastFieldPos.getRotation());
 
         allianceColour = AllianceColour.BLUE;
@@ -207,13 +208,6 @@ public class Auto1_BlueFieldLeft extends AutoBase {
                 moveTo.Forward((int) ((4 * ticksPerInch) * 0.94), 0.25);
                 // Moves the linear slide to the bottom position
                 linearSlideMove.LinearSlidesBottom();
-                // Moves right 18 inches
-                moveTo.Right((int) ((18 * ticksPerInch) * 1.04), 0.4);
-                // Backward 6 inches
-                moveTo.Backwards((int) ((10 * ticksPerInch) * 0.94), 0.25);
-                // Add telemetry
-                telemetry.addData("run", state);
-                telemetry.update();
                 state = 3;
             } else if (gamepieceLocation == GamePieceLocation.CENTER && state == 2) {
                 // Move the linear slide to the low scoring position
@@ -228,10 +222,6 @@ public class Auto1_BlueFieldLeft extends AutoBase {
                 moveTo.Forward((int) ((4 * ticksPerInch) * 0.94), 0.25);
                 // Moves the linear slide to the bottom position
                 linearSlideMove.LinearSlidesBottom();
-                // Moves right 26 inches
-                moveTo.Right((int) ((24 * ticksPerInch) * 1.04), 0.4);
-                // Backward 6 inches
-                moveTo.Backwards((int) ((10 * ticksPerInch) * 0.94), 0.25);
                 state = 3;
             } else if (gamepieceLocation == GamePieceLocation.RIGHT && state == 2) {
                 // Move the linear slide to the low scoring position
@@ -246,19 +236,29 @@ public class Auto1_BlueFieldLeft extends AutoBase {
                 moveTo.Forward((int) ((4 * ticksPerInch) * 0.94), 0.25);
                 // Moves the linear slide to the bottom position
                 linearSlideMove.LinearSlidesBottom();
-                // Moves right 32 inches
-                moveTo.Right((int) ((30 * ticksPerInch) * 1.04), 0.4);
-                // Backward 10 inches
-                moveTo.Backwards((int) ((10 * ticksPerInch) * 0.94), 0.25);
                 state = 3;
             }
             // Show the elapsed game time and wheel power.
             displayTelemetry(DirectionNow);
 
-            if (state == 3){
+            // Use the GoToPose2D to finalize the auto by parking
+            if (state == 3) {
+                // Align and drive to April Tag.  1 is BLUE side LEFT.
+                // Update IMU and Odometry
+                DirectionNow = imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.DEGREES);
+                odometrySpeeds = moveTo.GetWheelSpeeds();
+                odometry.updateWithTime(odometryTimer.seconds(),
+                        new Rotation2d(Math.toRadians(DirectionNow)), odometrySpeeds);
+
+                if (moveTo.GoToPose2d(new Pose2d(0.3, 3.2, new Rotation2d(Math.toRadians(0.0))))) {
+                    state = 4;
+                }
+            }
+
+            if (state == 4){
                 // save our last position so teleop can pick it up as a starting point
                 updateLastPos();
-                state = 4;
+                state = 5;
             }
         }
     }

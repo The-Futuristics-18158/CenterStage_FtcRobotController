@@ -138,7 +138,7 @@ public class Gge_Odometry_TeleOp extends LinearOpMode {
     private AprilTagLocation leftTagID;
     private AprilTagLocation centerTagID;
     private AprilTagLocation rightTagID;
-
+    int blinkinRefreshCounter = 0;
     @Override
     public void runOpMode() {
 
@@ -275,19 +275,21 @@ public class Gge_Odometry_TeleOp extends LinearOpMode {
                 centerTagID = AprilTagLocation.BLUE_CENTRE;
                 rightTagID = AprilTagLocation.BLUE_RIGHT;
                 RobotHeading = DirectionNow;
+                blinkinLED.setPattern(RevBlinkinLedDriver.BlinkinPattern.COLOR_WAVES_OCEAN_PALETTE);
                 break;
             case RED:
                 // target positions -- when on the BLUE alliance these will be set to the approach for tags 1 - 3.
                 // backdrop when the robot starts in the blue left position
-                leftTagApproachX = 2.57; // 1m from the blue field side
-                centerTagApproachX = 2.75; // 1m from the blue field side
-                rightTagApproachX = 2.87; // 1m from the blue field side
+                leftTagApproachX = 2.5; // 1m from the blue field side
+                centerTagApproachX = 2.7; // 1m from the blue field side
+                rightTagApproachX = 2.9; // 1m from the blue field side
                 allTagsApproachY = 2.75; // field Y is always the same for ideal approach
                 allTagsApproachAngle = -90; // initialized as 0.0 degrees from blue field start
                 leftTagID = AprilTagLocation.RED_LEFT;
                 centerTagID = AprilTagLocation.RED_CENTRE;
                 rightTagID = AprilTagLocation.RED_RIGHT;
                 RobotHeading = DirectionNow - 180;
+                blinkinLED.setPattern(RevBlinkinLedDriver.BlinkinPattern.COLOR_WAVES_LAVA_PALETTE);
                 break;
         }
 
@@ -334,7 +336,20 @@ public class Gge_Odometry_TeleOp extends LinearOpMode {
 
             DirectionNow = imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.DEGREES);
             // If we're on the RED Alliance, Robot heading needs to be reversed from the IMU to maintain field coords.
-            RobotHeading = (allianceNow == AllianceColour.BLUE) ? DirectionNow : DirectionNow - 180;
+            blinkinRefreshCounter += 1;
+            if (allianceNow == AllianceColour.BLUE){
+                RobotHeading = DirectionNow;
+                if (blinkinRefreshCounter >= 100){
+                    blinkinLED.setPattern(RevBlinkinLedDriver.BlinkinPattern.COLOR_WAVES_OCEAN_PALETTE);
+                    blinkinRefreshCounter = 0;
+                }
+            } else {
+                RobotHeading = DirectionNow - 180;
+                if (blinkinRefreshCounter >= 100){
+                    blinkinLED.setPattern(RevBlinkinLedDriver.BlinkinPattern.BREATH_RED);
+                    blinkinRefreshCounter = 0;
+                }
+            }
 
             // Get the wheel speeds and update the odometry
             odometrySpeeds = moveTo.GetWheelSpeeds();
@@ -506,6 +521,11 @@ public class Gge_Odometry_TeleOp extends LinearOpMode {
                 rightFrontPower /= max;
                 leftBackPower   /= max;
                 rightBackPower  /= max;
+            }
+
+            // if the robot is hanging & pitch is > abs (10 degrees), stop the motors
+            if (abs(imu.getRobotYawPitchRollAngles().getPitch(AngleUnit.DEGREES)) > 10){
+                powerFactor = 0.0;
             }
 
             // Scale the Power down for the 12:1 ultraplanetary setup

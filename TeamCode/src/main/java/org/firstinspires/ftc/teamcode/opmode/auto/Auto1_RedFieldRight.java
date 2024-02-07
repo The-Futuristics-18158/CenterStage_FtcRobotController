@@ -178,6 +178,7 @@ public class Auto1_RedFieldRight extends AutoBase {
                     state = 2;
                 }
             } else if (gamepieceLocation == GamePieceLocation.CENTER && state == 1) {
+
                 // Align and drive to April Tag.  5 is RED side CENTER.
                 if (moveTo.GoToAprilTag(AprilTagLocation.RED_CENTRE) == true) {
                     state = 2;
@@ -203,12 +204,8 @@ public class Auto1_RedFieldRight extends AutoBase {
                 moveTo.Forward((int) ((4 * ticksPerInch) * 0.94), 0.25);
                 // Moves the linear slide to the bottom position
                 linearSlideMove.LinearSlidesBottom();
-                // Pause to ensure the lift rest on the bottom
-                sleep(500);
-                // Finish all autos with the wrist up
-                intake.FlipUp();
-                // Moves left 32 inches
-                moveTo.Left((int) ((32 * ticksPerInch) * 1.04), 0.4);
+                // Moves left 30 inches
+                moveTo.Left((int) ((30 * ticksPerInch) * 1.04), 0.4);
                 // Backward 6 inches
                 moveTo.Backwards((int) ((10 * ticksPerInch) * 0.94), 0.25);
                 state = 3;
@@ -225,11 +222,7 @@ public class Auto1_RedFieldRight extends AutoBase {
                 moveTo.Forward((int) ((4 * ticksPerInch) * 0.94), 0.25);
                 // Moves the linear slide to the bottom position
                 linearSlideMove.LinearSlidesBottom();
-                // Pause to ensure the lift rest on the bottom
-                sleep(500);
-                // Finish all autos with the wrist up
-                intake.FlipUp();
-                // Moves right 26 inches
+                // Moves right 24 inches
                 moveTo.Left((int) ((24 * ticksPerInch) * 1.04), 0.4);
                 // Backward 6 inches
                 moveTo.Backwards((int) ((10 * ticksPerInch) * 0.94), 0.25);
@@ -247,10 +240,6 @@ public class Auto1_RedFieldRight extends AutoBase {
                 moveTo.Forward((int) ((4 * ticksPerInch) * 0.94), 0.25);
                 // Moves the linear slide to the bottom position
                 linearSlideMove.LinearSlidesBottom();
-                // Pause to ensure the lift rest on the bottom
-                sleep(500);
-                // Finish all autos with the wrist up
-                intake.FlipUp();
                 // Moves left 18 inches
                 moveTo.Left((int) ((18 * ticksPerInch) * 1.04), 0.4);
                 // Backward 10 inches

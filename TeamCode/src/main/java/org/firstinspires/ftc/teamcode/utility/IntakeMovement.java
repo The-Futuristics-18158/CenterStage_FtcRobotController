@@ -29,7 +29,7 @@ public class IntakeMovement {
 
     static final double SERVO_CLAW_DELAY = 1.0;
 
-    static final double CONVEYOR_ADVANCE_DELAY = 0.9;
+    static final double CONVEYOR_ADVANCE_DELAY = 1.0;
 
     // Tracks the amount of time a servo moving into position will take
     private ElapsedTime servoRuntime = new ElapsedTime();
