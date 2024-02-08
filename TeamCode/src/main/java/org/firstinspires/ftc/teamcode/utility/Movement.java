@@ -458,14 +458,12 @@ public class Movement {
         double aprilTagTargetX = 0;
         AllianceColour allianceNow = AllianceColour.BLUE;
         // The AprilTag is not centered on the LEFT and RIGHT backdrop zones, adjust X targets
-        // Center position adjusted so pixel doesn't fall so true on the center peak.
         if (tagNumber == AprilTagLocation.BLUE_LEFT || tagNumber == AprilTagLocation.RED_LEFT) {
             aprilTagTargetX = 0.25;
-        } else if (
-                tagNumber == AprilTagLocation.BLUE_RIGHT || tagNumber == AprilTagLocation.RED_RIGHT) {
+        } else if (tagNumber == AprilTagLocation.BLUE_RIGHT || tagNumber == AprilTagLocation.RED_RIGHT) {
             aprilTagTargetX = -0.25;
         }
-        double aprilTagTargetY = 10;
+        double aprilTagTargetY = 8.5;
         double aprilTagTargetAngle = 0;
 
         // Translate the tagNumber requested to know the angle of the backdrop in robot IMU
@@ -515,9 +513,8 @@ public class Movement {
 
         // Update Telemetry with key data
         telemetry.addData("Detected April Tag ID: ", detectedAprilTagID);
-        telemetry.addData("Pose2D Current (X,Y): ","(%5.2f,%5.2f)", aprilTagCurrentX, aprilTagCurrentY);
-        telemetry.addData("Pose2D Target  (X,Y): ","(%5.2f,%5.2f)", aprilTagTargetX, aprilTagTargetY);
-        telemetry.addData("Current Φ ","(IMU%5.2f,Pose2D%5.2f)", imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.DEGREES), odometry.getPoseMeters().getRotation().getDegrees());
+        telemetry.addData("Pose2D Current (X,Y,Φ): ","(%5.2f,%5.2f,%5.2f)", aprilTagCurrentX, aprilTagCurrentY, aprilTagCurrentAngle);
+        telemetry.addData("Pose2D Target  (X,Y,Φ): ","(%5.2f,%5.2f,%5.2f)", aprilTagTargetX, aprilTagTargetY, aprilTagTargetAngle);
         telemetry.addData("Range To Target: ","%5.2f", (aprilTagTargetY - aprilTagCurrentY));
         telemetry.update();
 
@@ -558,14 +555,16 @@ public class Movement {
                 aprilTagAxial = 0;
             }
 
+            aprilTagAxial = 0.10;
+
             // Square up the robot to the backdrop (from targetAngle above)
             // If the yaw is +, apply -yaw, if the yaw if -, apply +yaw (-right_stick_x in robot mode)
             if (abs(aprilTagTargetAngle - aprilTagCurrentAngle) > 2) {
                 aprilTagYaw = -CalcTurnError(aprilTagTargetAngle, aprilTagCurrentAngle) / 45;
-                if (aprilTagYaw > 0.15) {
-                    aprilTagYaw = 0.15;
-                } else if (aprilTagYaw < -0.15) {
-                    aprilTagYaw = -0.15;
+                if (aprilTagYaw > 0.25) {
+                    aprilTagYaw = 0.25;
+                } else if (aprilTagYaw < -0.25) {
+                    aprilTagYaw = -0.25;
                 }
             } else {
                 aprilTagYaw = 0;
