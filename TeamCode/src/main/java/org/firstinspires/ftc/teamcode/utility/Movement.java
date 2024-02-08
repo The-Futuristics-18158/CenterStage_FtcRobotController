@@ -455,7 +455,7 @@ public class Movement {
     }
 
     public boolean GoToAprilTag(AprilTagLocation tagNumber) {
-        double aprilTagTargetX = 0;
+        double aprilTagTargetX = 0.0;
         AllianceColour allianceNow = AllianceColour.BLUE;
         // The AprilTag is not centered on the LEFT and RIGHT backdrop zones, adjust X targets
         if (tagNumber == AprilTagLocation.BLUE_LEFT || tagNumber == AprilTagLocation.RED_LEFT) {
@@ -463,24 +463,28 @@ public class Movement {
         } else if (tagNumber == AprilTagLocation.BLUE_RIGHT || tagNumber == AprilTagLocation.RED_RIGHT) {
             aprilTagTargetX = -0.25;
         }
-        double aprilTagTargetY = 8.5;
-        double aprilTagTargetAngle = 0;
+        double aprilTagTargetY = 8.0;
+        double aprilTagTargetAngle = 0.0;
+        // Start creeping backwards when nothing is detected.
+        aprilTagAxial = -0.10;
+        aprilTagLateral = 0.0;
+        aprilTagYaw = 0.0;
 
         // Translate the tagNumber requested to know the angle of the backdrop in robot IMU
         if (tagNumber == AprilTagLocation.BLUE_LEFT ||
                 tagNumber == AprilTagLocation.BLUE_CENTRE ||
                 tagNumber == AprilTagLocation.BLUE_RIGHT) {
-            aprilTagTargetAngle = -90;
+            aprilTagTargetAngle = -90.0;
         } else if (tagNumber == AprilTagLocation.RED_LEFT ||
                 tagNumber == AprilTagLocation.RED_CENTRE ||
                 tagNumber == AprilTagLocation.RED_RIGHT) {
-            aprilTagTargetAngle = 90;
+            aprilTagTargetAngle = 90.0;
             allianceNow = AllianceColour.RED;
         }
 
         double aprilTagCurrentAngle = imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.DEGREES);
         // If we're on the RED Alliance, Robot heading needs to be reversed from the IMU to maintain field coords.
-        double RobotHeading = (allianceNow == AllianceColour.BLUE) ? aprilTagCurrentAngle : aprilTagCurrentAngle - 180;
+        double RobotHeading = (allianceNow == AllianceColour.BLUE) ? aprilTagCurrentAngle : aprilTagCurrentAngle - 180.0;
 
         double detectedAprilTagID = 0.0;
 
@@ -497,8 +501,8 @@ public class Movement {
 
                             Translation2d robotFieldPOSMeters = RobotPosFromAprilTag(detectedTag);
                             // Smooth any erratic and rare incorrect field position returns from RobotPosAprilTag.
-                            double weightedX = (0.1 * robotFieldPOSMeters.getX()) + (0.9 * odometry.getPoseMeters().getX());
-                            double weightedY = (0.1 * robotFieldPOSMeters.getY()) + (0.9 * odometry.getPoseMeters().getY());
+                            double weightedX = (0.05 * robotFieldPOSMeters.getX()) + (0.95 * odometry.getPoseMeters().getX());
+                            double weightedY = (0.05 * robotFieldPOSMeters.getY()) + (0.95 * odometry.getPoseMeters().getY());
                             // Consider a low pass filter here... given that new April Tag data is
                             // coming at high frequency, each tag's new position could be partially
                             // taken as truth vs. existing field position.
@@ -516,6 +520,7 @@ public class Movement {
         telemetry.addData("Pose2D Current (X,Y,Φ): ","(%5.2f,%5.2f,%5.2f)", aprilTagCurrentX, aprilTagCurrentY, aprilTagCurrentAngle);
         telemetry.addData("Pose2D Target  (X,Y,Φ): ","(%5.2f,%5.2f,%5.2f)", aprilTagTargetX, aprilTagTargetY, aprilTagTargetAngle);
         telemetry.addData("Range To Target: ","%5.2f", (aprilTagTargetY - aprilTagCurrentY));
+        telemetry.addData("TELEMETRY YAW ERROR",aprilTagYaw);
         telemetry.update();
 
         // Stage 0 - Ensure that motor powers are zeroed and switch to RUN_USING_ENCODER mode.
@@ -540,14 +545,11 @@ public class Movement {
         aprilTagAligned = false;
 
         // if the tagID isn't yet found, creep backwards slowly
-        if (detectedAprilTagID == 0.0){
-            aprilTagAxial = -0.15;
-        } else {
-            // Indicate the the driver that the target is found
+        if (detectedAprilTagID != 0.0){
             blinkinLED.setPattern(RevBlinkinLedDriver.BlinkinPattern.GREEN);
 
-            // Back the robot up to the right distance to raise the lift
-            if (aprilTagCurrentY > (aprilTagTargetY + 6)) {
+            // Increase speed if you're farther than 8 inches away
+            if (aprilTagCurrentY > (aprilTagTargetY + 8)) {
                 aprilTagAxial = -0.25;
             } else if (aprilTagCurrentY > (aprilTagTargetY)) {
                 aprilTagAxial = -0.10;
@@ -555,16 +557,14 @@ public class Movement {
                 aprilTagAxial = 0;
             }
 
-            aprilTagAxial = 0.10;
-
             // Square up the robot to the backdrop (from targetAngle above)
             // If the yaw is +, apply -yaw, if the yaw if -, apply +yaw (-right_stick_x in robot mode)
-            if (abs(aprilTagTargetAngle - aprilTagCurrentAngle) > 2) {
-                aprilTagYaw = -CalcTurnError(aprilTagTargetAngle, aprilTagCurrentAngle) / 45;
-                if (aprilTagYaw > 0.25) {
-                    aprilTagYaw = 0.25;
-                } else if (aprilTagYaw < -0.25) {
-                    aprilTagYaw = -0.25;
+            if (abs(aprilTagTargetAngle - aprilTagCurrentAngle) > 2.0) {
+                aprilTagYaw = CalcTurnError(aprilTagTargetAngle, aprilTagCurrentAngle) / 45.0;
+                if (aprilTagYaw > 0.15) {
+                    aprilTagYaw = 0.15;
+                } else if (aprilTagYaw < -0.15) {
+                    aprilTagYaw = -0.15;
                 }
             } else {
                 aprilTagYaw = 0;
@@ -583,11 +583,12 @@ public class Movement {
             }
         }
 
+
         // Combine the axial, lateral and yaw factors to be powers
-        double leftFrontPower = aprilTagAxial + aprilTagLateral + aprilTagYaw;
-        double rightFrontPower = aprilTagAxial - aprilTagLateral - aprilTagYaw;
-        double leftBackPower = aprilTagAxial - aprilTagLateral + aprilTagYaw;
-        double rightBackPower = aprilTagAxial + aprilTagLateral - aprilTagYaw;
+        double leftFrontPower = aprilTagAxial + aprilTagLateral - aprilTagYaw;
+        double rightFrontPower = aprilTagAxial - aprilTagLateral + aprilTagYaw;
+        double leftBackPower = aprilTagAxial - aprilTagLateral - aprilTagYaw;
+        double rightBackPower = aprilTagAxial + aprilTagLateral + aprilTagYaw;
 
         // Apply calculated values to drive motors
         lfDrive.setPower(leftFrontPower);
