@@ -111,6 +111,7 @@ public class Gge_Odometry_TeleOp extends LinearOpMode {
     Servo leftClaw;
     Servo rightClaw;
     Servo conveyor;
+    Servo drone;
 
     private IMU imu;
     // Used for managing the AprilTag detection process.
@@ -180,6 +181,8 @@ public class Gge_Odometry_TeleOp extends LinearOpMode {
 
         conveyor = hardwareMap.get(Servo.class, "conveyor");
 
+        drone = hardwareMap.get(Servo.class, "drone_launcher");
+
         blinkinLED = hardwareMap.get(RevBlinkinLedDriver.class, "blinkin");
 
         imu = hardwareMap.get(IMU.class, "imu");
@@ -196,6 +199,9 @@ public class Gge_Odometry_TeleOp extends LinearOpMode {
         // set a timer to prevent restarting auto drive correction within several milliseconds of the previous initialization
         double autoDriveDelay = 200;
         double autoDriveTimeOk;
+
+        //drone release servo starting position
+        double droneRelease = 0.0;
 
         // Adding in PIDF Config values learned from previous testing
         // These may need to be tuned anytime the motor weights or config changes.
@@ -314,25 +320,6 @@ public class Gge_Odometry_TeleOp extends LinearOpMode {
         // run until the end of the match (driver presses STOP)
         while (opModeIsActive()) {
 
-            if(visionSystem.getDetections() != null){
-                List<AprilTagDetection>  tagDetections = visionSystem.getDetections();
-                for (AprilTagLocation item: AprilTagLocation.values()){
-                    for (AprilTagDetection detectedTag: tagDetections){
-                        if (detectedTag.id == item.TagNum()) {
-                            Translation2d robotFieldPOSMeters = moveTo.RobotPosFromAprilTag(detectedTag);
-                            // Smooth any erratic and rare incorrect field position returns from RobotPosAprilTag.
-                            double weightedX = (0.1 * robotFieldPOSMeters.getX()) + (0.9 * odometry.getPoseMeters().getX());
-                            double weightedY = (0.1 * robotFieldPOSMeters.getY()) + (0.9 * odometry.getPoseMeters().getY());
-                            // Consider a low pass filter here... given that new April Tag data is
-                            // coming at high frequency, each tag's new position could be partially
-                            // taken as truth vs. existing field position.
-                            odometry.resetPosition(new Pose2d(weightedX, weightedY,
-                                    new Rotation2d(Math.toRadians(RobotHeading))), new Rotation2d(Math.toRadians(DirectionNow)));
-                        }
-                    }
-                }
-            }
-
 
             DirectionNow = imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.DEGREES);
             // If we're on the RED Alliance, Robot heading needs to be reversed from the IMU to maintain field coords.
@@ -382,6 +369,11 @@ public class Gge_Odometry_TeleOp extends LinearOpMode {
 
             // If the driver holds the right bumper while clicking the GoToAprilTag functions, drive to approach point for the tag.
             if (gamepad1.right_bumper){
+                if (droneRelease == 0.0){
+                    droneRelease = 0.6;
+                } else {
+                    droneRelease = 0.0;
+                }
                 if (gamepad1.x) {
                     while (!moveTo.GoToPose2d(new Pose2d(leftTagApproachX,allTagsApproachY,new Rotation2d(Math.toRadians(allTagsApproachAngle)))) && gamepad1.x){
                         DirectionNow = imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.DEGREES);
