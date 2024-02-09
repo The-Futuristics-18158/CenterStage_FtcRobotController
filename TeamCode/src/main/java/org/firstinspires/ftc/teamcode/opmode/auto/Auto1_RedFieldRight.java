@@ -42,6 +42,7 @@ import org.firstinspires.ftc.teamcode.utility.GamePieceLocation;
 import org.firstinspires.ftc.teamcode.utility.VisionProcessorMode;
 import org.firstinspires.ftc.teamcode.vision.util.FieldPosition;
 import org.firstinspires.ftc.teamcode.vision.util.SpikePosition;
+import org.firstinspires.ftc.vision.VisionPortal;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -66,16 +67,16 @@ public class Auto1_RedFieldRight extends AutoBase {
         super.runOpMode();
         gamepieceLocation = GamePieceLocation.UNDEFINED; // this is the position that we can't see
         setFieldPosition(FieldPosition.RED_FIELD_RIGHT);
-
-        allianceColour = AllianceColour.RED;
         // this is setting the initial field coordinates
         // need to set the AprilTagTargets
         targetAprilTags = new ArrayList<>(Arrays.asList(AprilTagLocation.RED_LEFT,
                 AprilTagLocation.RED_CENTRE,
                 AprilTagLocation.RED_RIGHT));
-        //todo: put proper initial positions
         lastFieldPos = new Pose2d(0.25,2.2, new Rotation2d(Math.toRadians(0.0)));
+
         odometry.resetPosition(lastFieldPos,lastFieldPos.getRotation());
+
+        allianceColour = AllianceColour.RED;
 
         /**
          * This loop is run continuously
@@ -105,6 +106,7 @@ public class Auto1_RedFieldRight extends AutoBase {
             visionSystem.stopLiveView();
 
             updateOdometry();
+
             //we don't need the front camera anymore,  now need the rear one with april tags
             VisionProcessorMode currentVPMode = visionSystem.setVisionProcessingMode(VisionProcessorMode.REAR_CAMERA_BACKDROP_APRIL_TAG);
 
@@ -129,11 +131,11 @@ public class Auto1_RedFieldRight extends AutoBase {
                 intake.ClawClosed();
                 sleep(250);
                 // move forward 18 inches
-                moveTo.Forward((int) ((18 * ticksPerInch) * 0.94), 0.25); // Calculated ticks by distance * 94% (from last year)
+                moveTo.Forward((int) ((12 * ticksPerInch) * 0.94), 0.25); // Calculated ticks by distance * 94% (from last year)
                 // Move the claw down
                 intake.FlipDown();
                 // Move forward 4 inches
-                moveTo.Forward((int) ((4 * ticksPerInch) * 0.94), 0.25);
+                moveTo.Forward((int) ((10 * ticksPerInch) * 0.94), 0.25);
                 // Open the claw - always pause after servo claw motions.
                 intake.ClawOpen();
                 sleep(250);
@@ -150,7 +152,7 @@ public class Auto1_RedFieldRight extends AutoBase {
                 // move forward 2 inches
                 moveTo.Forward((int) ((2 * ticksPerInch) * 0.94), 0.25); // Calculated ticks by distance * 94% (from last year)
                 // move sideways 9 inches
-                moveTo.Right((int) ((9 * ticksPerInch) * 1.04), 0.4); // Calculated ticks by distance * 104% (from last year)
+                moveTo.Right((int) ((8 * ticksPerInch) * 1.04), 0.4); // Calculated ticks by distance * 104% (from last year)
                 // move forward 8 inches
                 moveTo.Forward((int) ((8 * ticksPerInch) * 0.94), 0.25); // Calculated ticks by distance * 94% (from last year)
                 sleep (500);
@@ -158,7 +160,7 @@ public class Auto1_RedFieldRight extends AutoBase {
                 intake.FlipDown();
                 sleep (500);
                 // move forward 6 inches
-                moveTo.Forward((int) ((6 * ticksPerInch) * 0.94), 0.25); // Calculated ticks by distance * 94% (from last year)
+                moveTo.Forward((int) ((7 * ticksPerInch) * 0.94), 0.25); // Calculated ticks by distance * 94% (from last year)
                 sleep (500);
                 // Drop the loaded pixel - always pause after servo claw motions.
                 intake.ClawOpen();
@@ -204,10 +206,6 @@ public class Auto1_RedFieldRight extends AutoBase {
                 moveTo.Forward((int) ((4 * ticksPerInch) * 0.94), 0.25);
                 // Moves the linear slide to the bottom position
                 linearSlideMove.LinearSlidesBottom();
-                // Moves left 30 inches
-                moveTo.Left((int) ((30 * ticksPerInch) * 1.04), 0.4);
-                // Backward 6 inches
-                moveTo.Backwards((int) ((10 * ticksPerInch) * 0.94), 0.25);
                 state = 3;
             } else if (gamepieceLocation == GamePieceLocation.CENTER && state == 2) {
                 // Move the linear slide to the low scoring position
@@ -222,10 +220,6 @@ public class Auto1_RedFieldRight extends AutoBase {
                 moveTo.Forward((int) ((4 * ticksPerInch) * 0.94), 0.25);
                 // Moves the linear slide to the bottom position
                 linearSlideMove.LinearSlidesBottom();
-                // Moves right 24 inches
-                moveTo.Left((int) ((24 * ticksPerInch) * 1.04), 0.4);
-                // Backward 6 inches
-                moveTo.Backwards((int) ((10 * ticksPerInch) * 0.94), 0.25);
                 state = 3;
             } else if (gamepieceLocation == GamePieceLocation.RIGHT && state == 2) {
                 //Move the linear slide to the low scoring position
@@ -240,17 +234,30 @@ public class Auto1_RedFieldRight extends AutoBase {
                 moveTo.Forward((int) ((4 * ticksPerInch) * 0.94), 0.25);
                 // Moves the linear slide to the bottom position
                 linearSlideMove.LinearSlidesBottom();
-                // Moves left 18 inches
-                moveTo.Left((int) ((18 * ticksPerInch) * 1.04), 0.4);
-                // Backward 10 inches
-                moveTo.Backwards((int) ((10 * ticksPerInch) * 0.94), 0.25);
                 state = 3;
             }
             // Show the elapsed game time and wheel power.
             displayTelemetry(DirectionNow);
 
-            // save our last position so teleop can pick it up as a starting point
-            updateLastPos();
+            // Use the GoToPose2D to finalize the auto by parking
+            if (state == 3) {
+                // Align and drive to April Tag.  1 is BLUE side LEFT.
+                // Update IMU and Odometry
+                DirectionNow = imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.DEGREES);
+                odometrySpeeds = moveTo.GetWheelSpeeds();
+                odometry.updateWithTime(odometryTimer.seconds(),
+                        new Rotation2d(Math.toRadians(DirectionNow)), odometrySpeeds);
+
+                if (moveTo.GoToPose2d(new Pose2d(3.4, 3.2, new Rotation2d(Math.toRadians(180.0))))) {
+                    state = 4;
+                }
+            }
+
+            if (state == 4){
+                // save our last position so teleop can pick it up as a starting point
+                updateLastPos();
+                state = 5;
+            }
         }
 
 

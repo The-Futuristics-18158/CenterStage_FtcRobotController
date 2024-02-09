@@ -463,7 +463,7 @@ public class Movement {
         } else if (tagNumber == AprilTagLocation.BLUE_RIGHT || tagNumber == AprilTagLocation.RED_RIGHT) {
             aprilTagTargetX = -0.25;
         }
-        double aprilTagTargetY = 8.0;
+        double aprilTagTargetY = 7.75;
         double aprilTagTargetAngle = 0.0;
         // Start creeping backwards when nothing is detected.
         aprilTagAxial = -0.10;

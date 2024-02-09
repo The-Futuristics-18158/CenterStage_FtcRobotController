@@ -52,8 +52,8 @@ public class HSVSaturationProcessor implements VisionProcessor {
         switch(getFieldPosition()){
             case BLUE_FIELD_LEFT:
             case RED_FIELD_LEFT:
-                LEFT_SPIKE_SATURATION_BASELINE = 26; // this was 22.21125992063492 at calibration
-                CENTER_SPIKE_SATURATION_BASELINE = 22; // this was 6.122269404803341 at calibration
+                LEFT_SPIKE_SATURATION_BASELINE = 30; // this was 22.21125992063492 at calibration
+                CENTER_SPIKE_SATURATION_BASELINE = 25; // this was 6.122269404803341 at calibration
                 RIGHT_SPIKE_SATURATION_BASELINE =  0;
                 leftSpike = new Rect(1, 144, 195, 200); //bottom left coords 384, 444.  Changed from x:0, y:330, w:280, h:288 before calibration.
                 centerSpike = new Rect(250,150 , 380, 100); //bottom left coords 1110, 397.  Changed from x:400, y:345, w:650, h:221 before at calibration.
@@ -62,8 +62,8 @@ public class HSVSaturationProcessor implements VisionProcessor {
             case BLUE_FIELD_RIGHT:
             case RED_FIELD_RIGHT:
                 LEFT_SPIKE_SATURATION_BASELINE = 0;
-                CENTER_SPIKE_SATURATION_BASELINE = 20;
-                RIGHT_SPIKE_SATURATION_BASELINE =  20;
+                CENTER_SPIKE_SATURATION_BASELINE = 25;
+                RIGHT_SPIKE_SATURATION_BASELINE =  30;
                 leftSpike = new Rect(0, 0, 0, 0);
                 centerSpike = new Rect(50, 170,380,100); //bottom left coords 1110, 397.  Change from x:428, y:157, w:682, h:221 before calibration.
                 rightSpike = new Rect(490, 180,140,185); //bottom left coords 384, 444.  Changed from x:400, y:157, w:180, h:288 before calibration.

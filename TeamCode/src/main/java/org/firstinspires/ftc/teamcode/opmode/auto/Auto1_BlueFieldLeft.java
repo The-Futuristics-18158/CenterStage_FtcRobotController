@@ -130,8 +130,7 @@ public class Auto1_BlueFieldLeft extends AutoBase {
                 intake.FlipDown();
                 sleep (500);
                 // move forward 6 inches
-                moveTo.Forward((int) ((6 * ticksPerInch) * 0.94), 0.25); // Calculated ticks by distance * 94% (from last year)
-                sleep (500);
+                moveTo.Forward((int) ((7 * ticksPerInch) * 0.94), 0.25); // Calculated ticks by distance * 94% (from last year)
                 // Open the claw  - always pause after servo claw motions.
                 intake.ClawOpen();
                 sleep (250);
@@ -146,11 +145,11 @@ public class Auto1_BlueFieldLeft extends AutoBase {
                 intake.ClawClosed();
                 sleep (250);
                 // move forward 18 inches
-                moveTo.Forward((int) ((18 * ticksPerInch) * 0.94), 0.25); // Calculated ticks by distance * 94% (from last year)
+                moveTo.Forward((int) ((12 * ticksPerInch) * 0.94), 0.25); // Calculated ticks by distance * 94% (from last year)
                 // Move the claw down
                 intake.FlipDown();
                 // Move forward 4 inches
-                moveTo.Forward((int) ((4 * ticksPerInch) * 0.94), 0.25);
+                moveTo.Forward((int) ((10 * ticksPerInch) * 0.94), 0.25);
                 // Open the claw  - always pause after servo claw motions.
                 intake.ClawOpen();
                 sleep (250);
@@ -250,7 +249,7 @@ public class Auto1_BlueFieldLeft extends AutoBase {
                 odometry.updateWithTime(odometryTimer.seconds(),
                         new Rotation2d(Math.toRadians(DirectionNow)), odometrySpeeds);
 
-                if (moveTo.GoToPose2d(new Pose2d(0.3, 3.2, new Rotation2d(Math.toRadians(0.0))))) {
+                if (moveTo.GoToPose2d(new Pose2d(0.4, 3.2, new Rotation2d(Math.toRadians(0.0))))) {
                     state = 4;
                 }
             }
