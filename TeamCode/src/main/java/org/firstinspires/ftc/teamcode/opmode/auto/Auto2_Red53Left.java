@@ -264,7 +264,7 @@ public class Auto2_Red53Left extends AutoBase {
                 odometry.updateWithTime(odometryTimer.seconds(),
                         new Rotation2d(Math.toRadians(DirectionNow)), odometrySpeeds);
 
-                if (moveTo.GoToPose2d(new Pose2d(3.4, 3.2, new Rotation2d(Math.toRadians(180.0))))) {
+                if (moveTo.GoToPose2d(new Pose2d(2.34, 3.2, new Rotation2d(Math.toRadians(180.0))))) {
                     state = 4;
                 }
             }
